@@ -6,6 +6,5 @@ package ru.ifmo.diploma.synchronizer;
 public class Synchronizer {
     public static void main(String[] args) {
 
-        new Discovery().start();
     }
 }
