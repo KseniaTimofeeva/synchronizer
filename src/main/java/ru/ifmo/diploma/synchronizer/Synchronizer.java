@@ -1,7 +1,7 @@
 package ru.ifmo.diploma.synchronizer;
 
 import ru.ifmo.diploma.synchronizer.discovery.Discovery;
-import ru.ifmo.diploma.synchronizer.protocol.Credentials;
+import ru.ifmo.diploma.synchronizer.protocol.handshake.Credentials;
 
 import java.util.HashMap;
 import java.util.Map;

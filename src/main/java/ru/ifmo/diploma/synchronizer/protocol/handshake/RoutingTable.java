@@ -1,4 +1,7 @@
-package ru.ifmo.diploma.synchronizer.protocol;
+package ru.ifmo.diploma.synchronizer.protocol.handshake;
+
+import ru.ifmo.diploma.synchronizer.protocol.handshake.Credentials;
+import ru.ifmo.diploma.synchronizer.protocol.handshake.HandshakeMessage;
 
 import java.util.Map;
 

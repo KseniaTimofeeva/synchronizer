@@ -1,6 +1,6 @@
 package ru.ifmo.diploma.synchronizer.exchange;
 
-import ru.ifmo.diploma.synchronizer.protocol.AbstractMessage;
+import ru.ifmo.diploma.synchronizer.protocol.exchange.AbstractMessage;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -43,7 +43,7 @@ public class TReader extends Thread {
                 Object obj = objIn.readObject();
 
                 if (obj instanceof AbstractMessage) {
-
+                    tasks.offer((AbstractMessage) obj);
                 }
 
             } catch (IOException | ClassNotFoundException e) {

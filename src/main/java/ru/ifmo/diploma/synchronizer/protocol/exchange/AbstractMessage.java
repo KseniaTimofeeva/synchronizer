@@ -1,4 +1,4 @@
-package ru.ifmo.diploma.synchronizer.protocol;
+package ru.ifmo.diploma.synchronizer.protocol.exchange;
 
 /**
  * Created by ksenia on 28.05.2017.

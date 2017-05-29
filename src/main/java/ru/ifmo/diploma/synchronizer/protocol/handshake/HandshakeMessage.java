@@ -1,4 +1,4 @@
-package ru.ifmo.diploma.synchronizer.protocol;
+package ru.ifmo.diploma.synchronizer.protocol.handshake;
 
 import java.io.Serializable;
 

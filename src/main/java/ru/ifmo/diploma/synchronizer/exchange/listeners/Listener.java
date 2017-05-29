@@ -1,6 +1,6 @@
 package ru.ifmo.diploma.synchronizer.exchange.listeners;
 
-import ru.ifmo.diploma.synchronizer.protocol.AbstractMessage;
+import ru.ifmo.diploma.synchronizer.protocol.exchange.AbstractMessage;
 
 /**
  * Created by ksenia on 29.05.2017.

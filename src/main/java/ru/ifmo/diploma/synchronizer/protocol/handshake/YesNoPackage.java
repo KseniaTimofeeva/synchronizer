@@ -1,4 +1,6 @@
-package ru.ifmo.diploma.synchronizer.protocol;
+package ru.ifmo.diploma.synchronizer.protocol.handshake;
+
+import ru.ifmo.diploma.synchronizer.protocol.handshake.HandshakeMessage;
 
 /**
  * Created by ksenia on 24.05.2017.

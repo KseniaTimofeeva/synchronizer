@@ -2,11 +2,11 @@ package ru.ifmo.diploma.synchronizer.discovery;
 
 import ru.ifmo.diploma.synchronizer.exchange.TReader;
 import ru.ifmo.diploma.synchronizer.exchange.TWriter;
-import ru.ifmo.diploma.synchronizer.protocol.AbstractMessage;
-import ru.ifmo.diploma.synchronizer.protocol.Credentials;
-import ru.ifmo.diploma.synchronizer.protocol.HandshakeMessage;
-import ru.ifmo.diploma.synchronizer.protocol.RoutingTable;
-import ru.ifmo.diploma.synchronizer.protocol.YesNoPackage;
+import ru.ifmo.diploma.synchronizer.protocol.exchange.AbstractMessage;
+import ru.ifmo.diploma.synchronizer.protocol.handshake.Credentials;
+import ru.ifmo.diploma.synchronizer.protocol.handshake.HandshakeMessage;
+import ru.ifmo.diploma.synchronizer.protocol.handshake.RoutingTable;
+import ru.ifmo.diploma.synchronizer.protocol.handshake.YesNoPackage;
 
 import java.io.IOException;
 import java.io.InputStream;
