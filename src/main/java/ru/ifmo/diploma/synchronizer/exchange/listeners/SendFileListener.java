@@ -1,5 +1,6 @@
 package ru.ifmo.diploma.synchronizer.exchange.listeners;
 
+import ru.ifmo.diploma.synchronizer.discovery.CurrentConnections;
 import ru.ifmo.diploma.synchronizer.protocol.exchange.AbstractMessage;
 
 /**
@@ -8,7 +9,7 @@ import ru.ifmo.diploma.synchronizer.protocol.exchange.AbstractMessage;
 public class SendFileListener implements Listener<AbstractMessage> {
 
     @Override
-    public void send(AbstractMessage msg) {
+    public void handle(AbstractMessage msg, CurrentConnections currentConnections, String localAddr) {
 
     }
 }

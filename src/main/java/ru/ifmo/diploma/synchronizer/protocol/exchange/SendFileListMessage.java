@@ -5,4 +5,7 @@ package ru.ifmo.diploma.synchronizer.protocol.exchange;
  */
 public class SendFileListMessage extends AbstractMessage {
 
+    public SendFileListMessage(String from) {
+        super(from);
+    }
 }
