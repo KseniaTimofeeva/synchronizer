@@ -28,17 +28,19 @@ import java.util.Arrays;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.LinkedBlockingQueue;
 
 
 /**
  * Created by ksenia on 21.05.2017.
  */
-public class Discovery {
+public class Discovery extends Thread{
     private static final Logger LOG = LogManager.getLogger(Discovery.class);
 
     private int localPort;
@@ -47,6 +49,7 @@ public class Discovery {
     private Set<String> currentHostAddresses;
     private byte[] localMagicPackage = {5, 4, 3, 2};
     private BlockingQueue<AbstractMessage> tasks;
+    private List<Socket> socketList = new CopyOnWriteArrayList<>();
 
     private Map<String, Credentials> authorizationTable;
 
@@ -72,19 +75,27 @@ public class Discovery {
         return tasks;
     }
 
-    public void startDiscovery() {
-        Runtime.getRuntime().addShutdownHook(new Thread() {
-            public void run() { /*
-       my shutdown code here
-    */
-            }
-        });
+    public List<Socket> getSocketList() {
+        return socketList;
+    }
+
+    @Override
+    public void run() {
 
         try {
             localAddr = InetAddress.getLocalHost().getHostAddress() + ":" + localPort;
         } catch (UnknownHostException e) {
-            e.printStackTrace();
+            LOG.debug("discovery: " + Arrays.toString(e.getStackTrace()));
         }
+
+        Runtime.getRuntime().addShutdownHook(new Thread() {
+            public void run() {
+                for (Socket s : socketList) {
+                    Utils.closeSocket(s);
+                }
+                System.out.println("End host " + localAddr);
+            }
+        });
 
         currentHostAddresses = currentHostAddresses();
 
@@ -223,6 +234,7 @@ public class Discovery {
                                     LOG.warn(localAddr + ": Host " + addr + " is already connected");
                                     return;
                                 }
+                                socketList.add(socket);
                                 LOG.debug(localAddr + ": List of connections " + connections);
                                 objOut.writeObject(new YesNoPackage(localAddr, true, ""));
                                 objOut.flush();
@@ -263,6 +275,7 @@ public class Discovery {
                     if (addr != null) {
                         LOG.error(localAddr + ": " + addr + " stopped");
                         connections.remove(addr);
+                        socketList.remove(socket);
                     }
                     Utils.closeSocket(socket);
                 }
@@ -315,6 +328,7 @@ public class Discovery {
                                 return;
                             }
                             connections.put(addr, new CurrentConnections(in, out, objIn, objOut));
+                            socketList.add(socket);
                             LOG.debug(localAddr + ": List of connections " + connections);
                             LOG.info(localAddr + ": connected to " + addr);
 
@@ -342,6 +356,7 @@ public class Discovery {
                 if (!startReader) {
                     LOG.error(localAddr + ": " + addr + " stopped");
                     connections.remove(addr);
+                    socketList.remove(socket);
                     Utils.closeSocket(socket);
                 }
             }

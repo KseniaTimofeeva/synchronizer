@@ -17,10 +17,11 @@ import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.net.Socket;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.CountDownLatch;
 
 /**
  * Created by ksenia on 29.05.2017.
@@ -28,7 +29,6 @@ import java.util.concurrent.CountDownLatch;
 public class TReader extends Thread {
     private static final Logger LOG = LogManager.getLogger(TReader.class);
 
-    private CountDownLatch latch;
     private Discovery discovery;
     private Socket socket;
     private String addr;
@@ -36,6 +36,7 @@ public class TReader extends Thread {
     private String localAddr;
     private CurrentConnections currentConnections;
     private BlockingQueue<AbstractMessage> tasks;
+    private List<Socket> socketList;
 
     public TReader(Discovery discovery, Socket socket, String addr) {
         this.discovery = discovery;
@@ -63,6 +64,7 @@ public class TReader extends Thread {
         LOG.debug(localAddr + ": reader to " + addr + " started");
 
         tasks = discovery.getTasks();
+        socketList = discovery.getSocketList();
 
         addListeners();
 
@@ -91,10 +93,11 @@ public class TReader extends Thread {
             }
         } catch (IOException | ClassNotFoundException e) {
             LOG.error(localAddr + ": Reader error. Read object error");
-            LOG.error(e.getStackTrace());
+            LOG.debug("reader: " + Arrays.toString(e.getStackTrace()));
         } finally {
             LOG.error(localAddr + ": Reader error. " + addr + " stopped");
             connections.remove(addr);
+            socketList.remove(socket);
             Utils.closeSocket(socket);
         }
 

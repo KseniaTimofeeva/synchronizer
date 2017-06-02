@@ -44,13 +44,13 @@ public class Synchronizer {
         authorizationTable4.put(localAddr + ":60603", new Credentials("","login60603", "password60603"));
 
 
-        new Discovery(60601, authorizationTable1).startDiscovery();
-        threadSleep(1000);
-        new Discovery(60602, authorizationTable2).startDiscovery();
-        threadSleep(1000);
-        new Discovery(60603, authorizationTable3).startDiscovery();
-        threadSleep(1000);
-        new Discovery(60604, authorizationTable4).startDiscovery();
+        new Discovery(60601, authorizationTable1).start();
+        threadSleep(3000);
+        new Discovery(60602, authorizationTable2).start();
+        threadSleep(3000);
+        new Discovery(60603, authorizationTable3).start();
+        threadSleep(3000);
+        new Discovery(60604, authorizationTable4).start();
 
     }
 

@@ -18,8 +18,10 @@ import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.net.Socket;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CountDownLatch;
 
@@ -35,6 +37,7 @@ public class TWriter extends Thread {
     private CurrentConnections currentConnections;
     private int localPort;
     private String localAddr;
+    private List<Socket> socketList;
 
     public TWriter(Discovery discovery, Socket socket, String addr) {
         this.discovery = discovery;
@@ -54,6 +57,7 @@ public class TWriter extends Thread {
         BlockingQueue<AbstractMessage> tasks = discovery.getTasks();
         Map<String, CurrentConnections> connections = discovery.getConnections();
         CurrentConnections currentConnections = connections.get(addr);
+        socketList = discovery.getSocketList();
 
         LOG.debug(localAddr + ": writer: Current connections: " + currentConnections + " with host " + addr);
 
@@ -78,14 +82,15 @@ public class TWriter extends Thread {
             }
 
         } catch (InterruptedException e) {
-            LOG.debug(localAddr + ": Interrupted " + e.getStackTrace());
+            LOG.debug(localAddr + ": Interrupted " + Arrays.toString(e.getStackTrace()));
             interrupt();
         } catch (IOException e) {
             LOG.error(localAddr + ": Writer error. Write object error");
-            LOG.error(e.getStackTrace());
+            LOG.debug("writer: " + Arrays.toString(e.getStackTrace()));
         } finally {
             LOG.error(localAddr + ": Writer error. " + addr + " stopped");
             connections.remove(addr);
+            socketList.remove(socket);
             Utils.closeSocket(socket);
         }
     }
