@@ -8,6 +8,7 @@ import java.io.IOException;
 /**
  * Created by ksenia on 29.05.2017.
  */
-public interface  Listener <T extends AbstractMessage> {
-    void handle(T msg, CurrentConnections currentConnections, String localAddr) throws IOException;
+public interface Listener<T extends AbstractMessage> {
+
+    void handle(T msg, CurrentConnections currentConnections);
 }

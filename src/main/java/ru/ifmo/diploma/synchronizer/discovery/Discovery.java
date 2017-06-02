@@ -23,6 +23,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketAddress;
 import java.net.SocketException;
+import java.net.UnknownHostException;
 import java.util.Arrays;
 import java.util.Enumeration;
 import java.util.HashMap;
@@ -47,12 +48,7 @@ public class Discovery {
     private byte[] localMagicPackage = {5, 4, 3, 2};
     private BlockingQueue<AbstractMessage> tasks;
 
-    //@TODO карта маршрутизации хранится на диске
-    private Map<String, Credentials> authorizationTable = new HashMap<>();
-
-    public Discovery(int localPort) {
-        this.localPort = localPort;
-    }
+    private Map<String, Credentials> authorizationTable;
 
     public Discovery(int localPort, Map<String, Credentials> authorizationTable) {
         this.localPort = localPort;
@@ -77,12 +73,18 @@ public class Discovery {
     }
 
     public void startDiscovery() {
-        localAddr = "127.0.0.1:" + localPort;
-        /*try {
-            localAddr = InetAddress.getLocalHost().getHostAddress() + ":" + port;
+        Runtime.getRuntime().addShutdownHook(new Thread() {
+            public void run() { /*
+       my shutdown code here
+    */
+            }
+        });
+
+        try {
+            localAddr = InetAddress.getLocalHost().getHostAddress() + ":" + localPort;
         } catch (UnknownHostException e) {
             e.printStackTrace();
-        }*/
+        }
 
         currentHostAddresses = currentHostAddresses();
 
@@ -92,7 +94,7 @@ public class Discovery {
     }
 
     private void readRoutesAndConnect(Map<String, Credentials> authTable) {
-        LOG.debug(localPort + " start routing");
+        LOG.debug(localAddr + " start routing");
         for (Map.Entry<String, Credentials> entry : authTable.entrySet()) {
             String addr = entry.getKey();
 
@@ -112,8 +114,7 @@ public class Discovery {
 
             } catch (IOException e) {
                 Utils.closeSocket(socket);
-//                System.err.println(localPort + ": Error connecting to " + addr);
-                LOG.warn(localPort + ": Error connecting to " + addr);
+                LOG.warn(localAddr + ": Error connecting to " + addr + ". Cannot connect to remote host");
             }
         }
     }
@@ -134,8 +135,7 @@ public class Discovery {
                 }
             }
         } catch (SocketException e) {
-            //@TODO
-            e.printStackTrace();
+            LOG.debug(localAddr + ": Cannot get local host addresses " + Arrays.toString(e.getStackTrace()));
         }
         return currentHostAddresses;
     }
@@ -149,17 +149,14 @@ public class Discovery {
         public void run() {
 
             try (ServerSocket ssocket = new ServerSocket(localPort)) {   //стартуем на заданном порту
-//                System.out.println(localPort + ": Server started on " + ssocket);
-                LOG.debug(localPort + ": Server started on " + ssocket);
+                LOG.debug(localAddr + ": Server started on " + ssocket);
 
                 while (!isInterrupted()) {
                     Socket socket = ssocket.accept();
                     new InputConnectionThread(socket).start();
                 }
             } catch (IOException e) {
-//                System.err.println(localPort + ": Server error");
-                LOG.error(localPort + ": Server error");
-                e.printStackTrace();
+                LOG.error(localAddr + ": Server error");
             }
         }
     }
@@ -192,7 +189,10 @@ public class Discovery {
                 byte[] magicPackage = new byte[len];
                 System.arraycopy(buf, 0, magicPackage, 0, len);
 
+                LOG.debug(localAddr + ": Received magic package " + Arrays.toString(magicPackage));
+
                 if (!Arrays.equals(localMagicPackage, magicPackage)) {
+                    LOG.error(localAddr + ": Wrong magic package");
                     return;
                 }
 
@@ -204,13 +204,13 @@ public class Discovery {
                         Object obj = objIn.readObject();
 
                         if (!(obj instanceof HandshakeMessage)) {
+                            LOG.error(localAddr + ": No handshake message. Handshake message is expected");
                             return;
                         }
 
                         if (obj instanceof Credentials) {
 
-//                            System.out.println(obj + " from " + ((Credentials) obj).getFromAddr() + " to " + localPort);
-                            LOG.debug(obj + " from " + ((Credentials) obj).getFromAddr() + " to " + localPort);
+                            LOG.debug(obj + " from " + ((Credentials) obj).getFromAddr() + " to " + localAddr);
 
                             //credentials checking
                             addr = ((Credentials) obj).getFromAddr();
@@ -218,26 +218,27 @@ public class Discovery {
 
                             if (credFromTable == null || obj.equals(credFromTable)) {
                                 if ((connections.putIfAbsent(addr, new CurrentConnections(in, out, objIn, objOut))) != null) {
-                                    LOG.debug(connections);
                                     objOut.writeObject(new YesNoPackage(localAddr, false, "Repeat connection"));
                                     objOut.flush();
+                                    LOG.warn(localAddr + ": Host " + addr + " is already connected");
                                     return;
                                 }
-
+                                LOG.debug(localAddr + ": List of connections " + connections);
                                 objOut.writeObject(new YesNoPackage(localAddr, true, ""));
                                 objOut.flush();
                                 objOut.writeObject(new RoutingTable(localAddr, authorizationTable));
                                 objOut.flush();
                             } else {
                                 objOut.writeObject(new YesNoPackage(localAddr, false, "Invalid credentials "));
+                                LOG.error(localAddr + ": Invalid credentials from " + addr);
                                 return;
                             }
                         } else if (obj instanceof RoutingTable) {
-//                            System.out.println("Routing table from " + ((RoutingTable) obj).getFromAddr() + " to " + localPort);
-                            LOG.debug("Routing table from " + ((RoutingTable) obj).getFromAddr() + " to " + localPort);
+                            LOG.debug("Routing table from " + ((RoutingTable) obj).getFromAddr() + " to " + localAddr);
                             addHostsToMapAndConnect(((RoutingTable) obj).getAuthorizationTable());
                             break;
                         } else {
+                            LOG.error(localAddr + ": Unexpected message from " + addr);
                             return;
                         }
                     }
@@ -248,17 +249,19 @@ public class Discovery {
                     new TReader(Discovery.this, socket, addr).start();
 
                 } catch (ClassNotFoundException e) {
-//                    System.err.println(localPort + ": Data transferring error");
-                    LOG.error(localPort + ": Data transferring error");
-                    e.printStackTrace();
+                    LOG.error(localAddr + ": Data transferring error");
                 }
             } catch (IOException e) {
-                e.printStackTrace();
+                if (addr != null) {
+                    LOG.error(localAddr + ": Connection error with host " + addr);
+                } else {
+                    LOG.error(localAddr + ": Socket error " + socket);
+                }
             } finally {
                 if (!startReader) {
-//                    System.err.println(localPort + ": " + addr + " stopped");
-                    LOG.error(localPort + ": " + addr + " stopped");
+                    LOG.error(localAddr + ": Remote host is not authorized. Socket closed");
                     if (addr != null) {
+                        LOG.error(localAddr + ": " + addr + " stopped");
                         connections.remove(addr);
                     }
                     Utils.closeSocket(socket);
@@ -285,8 +288,7 @@ public class Discovery {
                 OutputStream out = socket.getOutputStream();
                 InputStream in = socket.getInputStream();
 
-//                System.out.println(localPort + ": magic to " + addr);
-                LOG.debug(localPort + ": magic to " + addr);
+                LOG.debug(localAddr + ": magic to " + addr);
 
                 out.write(localMagicPackage);
                 out.flush();
@@ -303,24 +305,23 @@ public class Discovery {
                         Object obj = objIn.readObject();
 
                         if (!(obj instanceof HandshakeMessage)) {
+                            LOG.warn(localAddr + ": No handshake message. Handshake message is expected");
                             return;
                         }
 
                         if (obj instanceof YesNoPackage) {
-//                            System.out.println(obj + " " + ((YesNoPackage) obj).getStatus() + " from " + ((YesNoPackage) obj).getFromAddr() + " to " + localPort);
                             if (!((YesNoPackage) obj).getStatus()) {
+                                LOG.warn(localAddr + ": Not authorized by " + ((YesNoPackage) obj).getFromAddr());
                                 return;
                             }
                             connections.put(addr, new CurrentConnections(in, out, objIn, objOut));
-                            LOG.debug(connections);
-//                            System.out.println(localPort + ": connected to " + addr);
-                            LOG.info(localPort + ": connected to " + addr);
+                            LOG.debug(localAddr + ": List of connections " + connections);
+                            LOG.info(localAddr + ": connected to " + addr);
 
                             objOut.writeObject(new RoutingTable(localAddr, authorizationTable));
                             objOut.flush();
                         } else if (obj instanceof RoutingTable) {
-//                            System.out.println("Routing table from " + ((RoutingTable) obj).getFromAddr() + " to " + localPort);
-                            LOG.debug("Routing table from " + ((RoutingTable) obj).getFromAddr() + " to " + localPort);
+                            LOG.debug("Routing table from " + ((RoutingTable) obj).getFromAddr() + " to " + localAddr);
 
                             addHostsToMapAndConnect(((RoutingTable) obj).getAuthorizationTable());
                             break;
@@ -333,16 +334,13 @@ public class Discovery {
                     new TWriter(Discovery.this, socket, addr).start();
 
                 } catch (ClassNotFoundException e) {
-//                    System.err.println(localPort + ": Data transferring error");
-                    LOG.error(localPort + ": Data transferring error");
-                    e.printStackTrace();
+                    LOG.error(localAddr + ": Data transferring error from " + addr);
                 }
             } catch (IOException e) {
-                e.printStackTrace();
+                LOG.error(localAddr + ": Connection error with host " + addr);
             } finally {
                 if (!startReader) {
-//                    System.err.println(localPort + ": " + addr + " stopped");
-                    LOG.error(localPort + ": " + addr + " stopped");
+                    LOG.error(localAddr + ": " + addr + " stopped");
                     connections.remove(addr);
                     Utils.closeSocket(socket);
                 }
@@ -354,8 +352,7 @@ public class Discovery {
         Map<String, Credentials> diffAuthTable = new HashMap<>();
         diffAuthTable.putAll(authTable);
         diffAuthTable.entrySet().removeAll(authorizationTable.entrySet());
-//        System.out.println(localPort + ": " + diffAuthTable);
-        LOG.debug(localPort + ": " + diffAuthTable);
+        LOG.debug(localAddr + ": " + diffAuthTable);
 
         if (diffAuthTable.isEmpty()) {
             return;

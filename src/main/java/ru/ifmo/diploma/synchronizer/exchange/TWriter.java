@@ -21,6 +21,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CountDownLatch;
 
 /**
  * Created by ksenia on 29.05.2017.
@@ -32,7 +33,6 @@ public class TWriter extends Thread {
     private Socket socket;
     private String addr;
     private CurrentConnections currentConnections;
-    private List<Listener<AbstractMessage>> listeners = new ArrayList<>();
     private int localPort;
     private String localAddr;
 
@@ -40,56 +40,55 @@ public class TWriter extends Thread {
         this.discovery = discovery;
         this.socket = socket;
         this.addr = addr;
-        addListeners();
     }
 
-    private void addListeners() {
-        listeners.add(new SendFileListener());
-        listeners.add(new SendFileListListener());
-    }
 
     @Override
     public void run() {
-        BlockingQueue<AbstractMessage> tasks = discovery.getTasks();
+
         localPort = discovery.getLocalPort();
         localAddr = discovery.getLocalAddr();
+
+        LOG.debug(localAddr + ": writer to " + addr + " started");
+
+        BlockingQueue<AbstractMessage> tasks = discovery.getTasks();
         Map<String, CurrentConnections> connections = discovery.getConnections();
         CurrentConnections currentConnections = connections.get(addr);
 
-//        System.out.println(localPort + ": writer to " + addr);
-        LOG.debug(localPort + ": writer to " + addr);
+        LOG.debug(localAddr + ": writer: Current connections: " + currentConnections + " with host " + addr);
 
-        InputStream in = currentConnections.getIn();
+//        InputStream in = currentConnections.getIn();
         OutputStream out = currentConnections.getOut();
-        ObjectInputStream objIn = currentConnections.getObjIn();
+//        ObjectInputStream objIn = currentConnections.getObjIn();
         ObjectOutputStream objOut = currentConnections.getObjOut();
 
         try {
-//            objOut.writeObject(new SendFileListMessage(localAddr));  //сообщение о готовности отправить список файлов
+            LOG.debug(localAddr + ": SendFileListMsg to " + addr);
+            objOut.writeObject(new SendFileListMessage(localAddr));  //запрашиваем список файлов
+            objOut.flush();
 
-
+            LOG.debug(localAddr + ": ready for writing to " + addr);
             while (!isInterrupted()) {
 
                 AbstractMessage msg = tasks.take();
-                notifyListeners(msg);
-
+                //@TODO
+                LOG.debug(localAddr + ": " + msg + " to " + addr);
+                objOut.writeObject(msg);
+                objOut.flush();
             }
 
         } catch (InterruptedException e) {
-            LOG.debug(e.getStackTrace());
+            LOG.debug(localAddr + ": Interrupted " + e.getStackTrace());
             interrupt();
         } catch (IOException e) {
-            LOG.debug(e.getStackTrace());
+            LOG.error(localAddr + ": Writer error. Write object error");
+            LOG.error(e.getStackTrace());
         } finally {
-            LOG.error(localPort + ": Writer error. " + addr + " stopped");
+            LOG.error(localAddr + ": Writer error. " + addr + " stopped");
             connections.remove(addr);
             Utils.closeSocket(socket);
         }
     }
 
-    private void notifyListeners(AbstractMessage msg) throws IOException {
-        for (Listener<AbstractMessage> listener : listeners) {
-            listener.handle(msg, currentConnections, localAddr);   //@TODO add inputstream
-        }
-    }
+
 }

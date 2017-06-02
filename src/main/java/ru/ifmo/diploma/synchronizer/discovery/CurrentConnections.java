@@ -36,4 +36,14 @@ public class CurrentConnections {
     public ObjectOutputStream getObjOut() {
         return objOut;
     }
+
+    @Override
+    public String toString() {
+        return "CurrentConnections{" +
+                "in=" + in +
+                ", out=" + out +
+                ", objIn=" + objIn +
+                ", objOut=" + objOut +
+                '}';
+    }
 }
