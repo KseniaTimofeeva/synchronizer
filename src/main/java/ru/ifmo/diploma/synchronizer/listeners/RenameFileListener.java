@@ -23,9 +23,9 @@ public class RenameFileListener extends AbstractListener {
             File newFile = new File(dc.getAbsolutePath(renameMsg.getNewRelativePath()));
             if (!oldFile.renameTo(newFile))
                 //System.err.println("Renaming failed");
-                tasks.offer(new ResultMsg(msg.getSender(), MessageState.FAILED, msg.getType()));
+                tasks.offer(new ResultMsg(msg.getSender(), MessageState.FAILED, msg));
             else
-                tasks.offer(new ResultMsg(msg.getSender(), MessageState.SUCCESS, msg.getType()));
+                tasks.offer(new ResultMsg(msg.getSender(), MessageState.SUCCESS, msg));
         }
     }
 }

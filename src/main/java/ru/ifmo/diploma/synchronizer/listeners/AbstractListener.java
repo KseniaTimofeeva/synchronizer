@@ -5,7 +5,7 @@ import ru.ifmo.diploma.synchronizer.messages.AbstractMsg;
 
 import java.util.concurrent.BlockingQueue;
 
-/**
+/*
  * Created by Юлия on 04.06.2017.
  */
 public abstract class AbstractListener implements Listener<AbstractMsg>{
