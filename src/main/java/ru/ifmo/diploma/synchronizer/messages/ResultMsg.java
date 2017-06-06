@@ -8,37 +8,40 @@ import java.io.ObjectOutput;
 /*
  * Created by Юлия on 30.05.2017.
  */
-public class ResultMsg extends AbstractMsg implements Externalizable{
+public class ResultMsg extends AbstractMsg implements Externalizable {
     private MessageState state;
-    private MessageType requestMsgType;
+    private AbstractMsg requestMsg;
 
-    public ResultMsg(){}
-
-    public ResultMsg(String sender, MessageState state, MessageType requestMsgType){
-        super(sender);
-        super.type=MessageType.RESULT;
-        this.state=state;
-        this.requestMsgType =requestMsgType;
+    public ResultMsg() {
     }
 
-    public MessageState getState(){
+    public ResultMsg(String sender, MessageState state, AbstractMsg requestMsg) {
+        super(sender);
+        super.type = MessageType.RESULT;
+        this.state = state;
+        this.requestMsg = requestMsg;
+    }
+
+    public MessageState getState() {
         return state;
     }
+
+    public AbstractMsg getRequestMsg() { return requestMsg; }
 
     @Override
     public void writeExternal(ObjectOutput out) throws IOException {
         out.writeObject(this.sender);
         out.writeObject(this.type);
         out.writeObject(state);
-        out.writeObject(requestMsgType);
+        out.writeObject(requestMsg);
     }
 
     @Override
     public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
-        sender=in.readObject().toString();
-        type=(MessageType)in.readObject();
-        state=(MessageState)in.readObject();
-        requestMsgType =(MessageType)in.readObject();
+        sender = in.readObject().toString();
+        type = (MessageType) in.readObject();
+        state = (MessageState) in.readObject();
+        requestMsg = (AbstractMsg) in.readObject();
 
     }
 }

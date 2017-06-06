@@ -24,17 +24,23 @@ public class CopyFileListener extends AbstractListener {
         if (msg.getType() == MessageType.COPY_FILE) {
             CopyFileMsg copyMsg = (CopyFileMsg) msg;
             Path oldPath = Paths.get(dc.getAbsolutePath(copyMsg.getRelativePath()));
-            Path newPath = Paths.get(dc.getAbsolutePath(copyMsg.getNewRelativePath()));
-            try {
-                Files.copy(oldPath, newPath);
-                dc.setCreationTime(newPath.toString(), copyMsg.getCreationTime());
-                tasks.offer(new ResultMsg(msg.getSender(), MessageState.SUCCESS, MessageType.COPY_FILE));
+            String p = dc.getAbsolutePath(dc.getAbsolutePath(copyMsg.getNewRelativePath()));
+            Path newPath = Paths.get(p);
+            Path newDirPath = Paths.get(p.substring(0, p.lastIndexOf("\\")));
 
-            } catch (IOException e) {
-                tasks.offer(new ResultMsg(msg.getSender(), MessageState.FAILED, MessageType.COPY_FILE));
-                e.printStackTrace();
+            if (!Files.exists(newDirPath)) {
+                try {
+                    Files.createDirectories(newDirPath);
+                    Files.copy(oldPath, newPath);
+                    dc.setCreationTime(newPath.toString(), copyMsg.getCreationTime());
+                    tasks.offer(new ResultMsg(msg.getSender(), MessageState.SUCCESS, msg));
+
+                } catch (IOException e) {
+                    tasks.offer(new ResultMsg(msg.getSender(), MessageState.FAILED, msg));
+
+                    e.printStackTrace();
+                }
             }
-
         }
     }
 }
