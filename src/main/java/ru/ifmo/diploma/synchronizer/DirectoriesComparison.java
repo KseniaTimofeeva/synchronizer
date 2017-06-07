@@ -1,8 +1,11 @@
 package ru.ifmo.diploma.synchronizer;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import ru.ifmo.diploma.synchronizer.messages.*;
+
 import java.io.*;
 import java.math.BigInteger;
-import java.net.Socket;
 import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.FileTime;
@@ -10,40 +13,75 @@ import java.security.DigestInputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.*;
+import java.util.concurrent.BlockingQueue;
 
 /*
  * Created by Юлия on 19.05.2017.
  */
 public class DirectoriesComparison {
-    public List<FileInfo> filesInfo = new ArrayList<>();
-    public List<FileInfo> prevDirState = new ArrayList<>();
-    public final String startPath;
+    private List<FileInfo> filesInfo = new ArrayList<>();
+    private List<FileInfo> prevDirState;
+    private final String startPath;
 
-    public DirectoriesComparison(String startPath) {
+    private final String localAddr;
+    private BlockingQueue<AbstractMsg> tasks;
+
+    private static final Logger LOG = LogManager.getLogger(DirectoriesComparison.class);
+
+
+    public DirectoriesComparison(String startPath, String localAddr, BlockingQueue<AbstractMsg> tasks) {
+
         this.startPath = startPath;
+        this.localAddr=localAddr;
+        this.tasks=tasks;
     }
 
 
     //записывает информацию обо всех файлах в список
-    void getListFiles(String path) throws IOException, NoSuchAlgorithmException {
+    public void createListFiles(String path) throws IOException, NoSuchAlgorithmException {
         File dir = new File(path);
-        List<File> files = Arrays.asList(dir.listFiles());
-        for (File f : files) {
-            if (f.isDirectory())
-                getListFiles(f.getAbsolutePath());
-            else if (!f.getName().equals("log.bin")) {
-                BasicFileAttributes attrs = Files.readAttributes(f.toPath(), BasicFileAttributes.class);
-                String relativePath = f.getPath().substring(startPath.length() + 1);
-                filesInfo.add(new FileInfo(relativePath, attrs.creationTime().toMillis(), f.lastModified(), f.length(), getCheckSum(f.toPath())));
+        File[] listFiles = dir.listFiles();
+
+        if (listFiles != null) {
+            List<File> files = Arrays.asList(listFiles);
+
+            for (File f : files) {
+                if (f.isDirectory())
+                    createListFiles(f.getAbsolutePath());
+                else if (!f.getName().equals("log.bin")) {
+                    BasicFileAttributes attrs = Files.readAttributes(f.toPath(), BasicFileAttributes.class);
+                    String relativePath = f.getPath().substring(startPath.length() + 1);
+                    filesInfo.add(new FileInfo(relativePath, attrs.creationTime().toMillis(), f.lastModified(), f.length(), getCheckSum(f.toPath())));
+                }
             }
+            LOG.debug("List of files descriptors on {1} was created", localAddr);
+        }
+        else{
+            LOG.debug("Synchronized directory on {1} is empty", localAddr);
         }
     }
 
-    private String getAbsolutePath(String relativePath) {
+    public List<FileInfo> getListFiles() {
+        return filesInfo;
+    }
+
+    public String getStartPath() {
+        return startPath;
+    }
+
+    public List<FileInfo> getPrevDirState(){
+        return prevDirState;
+    }
+
+    public void setPrevDirState(List<FileInfo> state) {
+        prevDirState=state;
+    }
+
+    public String getAbsolutePath(String relativePath) {
         return startPath + "\\" + relativePath;
     }
 
-    private void setCreationTime(String fileName, long creationTime) {
+    public void setCreationTime(String fileName, long creationTime) {
         FileTime newCreationTime = FileTime.fromMillis(creationTime);
         Path path = Paths.get(fileName);
         try {
@@ -51,39 +89,6 @@ public class DirectoriesComparison {
         } catch (IOException e) {
             e.printStackTrace();
         }
-
-    }
-
-
-    private void transferFile(String oldRelativePath, String newRelativePath) {
-        Path oldPath = Paths.get(getAbsolutePath(oldRelativePath));
-        Path newPath = Paths.get(getAbsolutePath(newRelativePath));
-
-        try {
-            Files.move(oldPath, newPath, StandardCopyOption.COPY_ATTRIBUTES, StandardCopyOption.REPLACE_EXISTING);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
-    }
-
-    private void renameFile(String oldRelativePath, String newRelativePath) {
-        File oldFile = new File(getAbsolutePath(oldRelativePath));
-        File newFile = new File(getAbsolutePath(newRelativePath));
-        if (!oldFile.renameTo(newFile))
-            System.err.println("Renaming failed");
-
-    }
-
-    private void copyFile(String oldRelativePath, String newRelativePath, long creationDate) {
-        Path oldPath = Paths.get(getAbsolutePath(oldRelativePath));
-        Path newPath = Paths.get(getAbsolutePath(newRelativePath));
-        try {
-            Files.copy(oldPath, newPath);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        setCreationTime(newPath.toString(), creationDate);
 
     }
 
@@ -104,58 +109,116 @@ public class DirectoriesComparison {
         return (new BigInteger(1, digest)).toString(32);
     }
 
-    void compareDirectories(List<FileInfo> l1, List<FileInfo> l2) {
-        boolean isFound;
-        Iterator<FileInfo> iter1 = l1.iterator();
 
-        while (iter1.hasNext()) {
-            FileInfo fi1 = iter1.next();
-            isFound = false;
-            Iterator<FileInfo> iter2 = l2.iterator();
+    private boolean isFirstLaunch(List<FileInfo> l1, List<FileInfo> l2) {
+        if (!Files.exists(Paths.get(getAbsolutePath("log.bin")))) {
+            LOG.debug("First launch on "+localAddr);
 
-            while (iter2.hasNext()) {
-                FileInfo fi2 = iter2.next();
-
-                if (fi1.equals(fi2)) {
-                    //files are same, nothing to do
-                    isFound = true;
-                    break;
+            for (FileInfo fi1 : l1) {
+                for (FileInfo fi2 : l2) {
+                    if (fi1.getRelativePath().equals(fi2.getRelativePath()) && fi1.getCheckSum().equals(fi2.getCheckSum()))
+                        if(fi1.getCreationDate()>fi2.getCreationDate())
+                            setCreationTime(getAbsolutePath(fi1.getRelativePath()), fi2.getCreationDate());
                 }
+            }
 
-                if (fi1.getCheckSum().equals(fi2.getCheckSum()) && fi1.getCreationDate() == fi2.getCreationDate()
-                        && fi1.getUpdateDate() == fi2.getUpdateDate()) {
-                    isFound = true;
+            prevDirState = new ArrayList<>();
+            return true;
+        }
+        return false;
+    }
 
-                    int finishIndex1 = fi1.getRelativePath().lastIndexOf("\\") > 0 ? fi1.getRelativePath().lastIndexOf("\\") : 0;
-                    int finishIndex2 = fi2.getRelativePath().lastIndexOf("\\") > 0 ? fi2.getRelativePath().lastIndexOf("\\") : 0;
-                    if (fi1.getRelativePath().substring(0, finishIndex1).equals(fi2.getRelativePath().substring(0, finishIndex2))) {
-                        //file was renamed
-                        //send msg RENAME
+    private void checkForLocalChanges() {
 
-                    } else {
-                        //file was transferred
-                        //send msg: TRANSFER
+        prevDirState=getDirectoryState(getAbsolutePath("log.bin"));
 
-                    }
+        for (FileInfo fi1 : prevDirState) {
+            boolean isOriginal = false, isCopied = false;
+            boolean isMatch = false;
 
-                    break;
+            for (FileInfo fi2 : filesInfo) {
+                if (fi1.equals(fi2)) {
+                    isOriginal = true;
+                    isMatch = true;
+                    continue;
                 }
 
                 if (fi1.getCheckSum().equals(fi2.getCheckSum())) {
+                    if (fi1.getCreationDate() == fi2.getCreationDate()) {
+                        isMatch = true;
+
+                        int finishIndex1 = fi1.getRelativePath().lastIndexOf("\\") > 0 ? fi1.getRelativePath().lastIndexOf("\\") : 0;
+                        int finishIndex2 = fi2.getRelativePath().lastIndexOf("\\") > 0 ? fi2.getRelativePath().lastIndexOf("\\") : 0;
+                        if (fi1.getRelativePath().substring(0, finishIndex1).equals(fi2.getRelativePath().substring(0, finishIndex2))) {
+
+                            LOG.debug("File {1} was locally renamed to {2}",fi1.getRelativePath(),fi2.getRelativePath());
+
+                            AbstractMsg msg = new RenameFileMsg(localAddr, fi1.getRelativePath(), fi2.getRelativePath());
+                            tasks.offer(msg);
+
+
+                        } else {
+
+                            LOG.debug("File {1} was locally moved to {2}",fi1.getRelativePath(),fi2.getRelativePath());
+
+                            AbstractMsg msg = new TransferFileMsg(localAddr, fi1.getRelativePath(), fi2.getRelativePath());
+                            tasks.offer(msg);
+
+                        }
+
+                    } else {
+
+                        isCopied = true;
+                        isMatch = true;
+                        LOG.debug("File {1} was locally copied to {2}",fi1.getRelativePath(),fi2.getRelativePath());
+
+                        AbstractMsg msg=new CopyFileMsg(localAddr,fi1.getRelativePath(),fi2.getRelativePath(), fi2.getCreationDate());
+                        tasks.offer(msg);
+
+                    }
+                }
+            }
+            if (!isOriginal && isCopied ||!isMatch) {
+                LOG.debug("File {1} was locally deleted",fi1.getRelativePath());
+
+                AbstractMsg msg=new DeleteFileMsg(localAddr,fi1.getRelativePath());
+                tasks.offer(msg);
+            }
+        }
+
+    }
+
+    public void compareDirectories(List<FileInfo> localListFiles, List<FileInfo> sentListFiles) {
+        boolean isFound;
+
+        if(!isFirstLaunch(localListFiles,sentListFiles))
+            checkForLocalChanges();
+
+        for (FileInfo sentFileInfo : sentListFiles){
+            isFound = false;
+
+            for (FileInfo localFileInfo : localListFiles){
+
+                if (sentFileInfo.getCheckSum().equals(localFileInfo.getCheckSum())) {
+                    LOG.debug("Files: {1}, {2} have same content");
                     isFound = true;
-                    //file was copied
-                    //send msg COPY
                     break;
                 }
+                if (sentFileInfo.getCreationDate() == localFileInfo.getCreationDate()) {
+                    if (sentFileInfo.getUpdateDate() > localFileInfo.getUpdateDate()) {
+                        LOG.debug("File {1} was modified, request it", localFileInfo.getRelativePath());
+                        AbstractMsg msg=new SendFileRequestMsg(localAddr,sentFileInfo,false);
+                        tasks.offer(msg);
 
-                if (fi1.getCreationDate() == fi2.getCreationDate()) {
-                    if (fi1.getUpdateDate() > fi2.getUpdateDate()) {
-                        //file was modified on source
-                        //send msg SEND
-                        //send modified file
                         isFound = true;
                         break;
                     }
+                }
+                if(sentFileInfo.getRelativePath().equals(localFileInfo.getRelativePath())){
+                    LOG.debug("Files have same relative paths ({1}), but different content, Request file and save it with different name");
+                    AbstractMsg msg=new SendFileRequestMsg(localAddr,sentFileInfo,true);
+                    tasks.offer(msg);
+
                 }
 
             }
@@ -163,46 +226,50 @@ public class DirectoriesComparison {
             if (!isFound) {
 
                 for (FileInfo prevFI : prevDirState) {
-                    if (fi1.getCheckSum().equals(prevFI.getCheckSum())) {
+                    if (sentFileInfo.getCheckSum().equals(prevFI.getCheckSum())) {
                         isFound = true;
-                        try {
-                            //file was deleted on another host
-                            //delete file on source
-                            Files.deleteIfExists(Paths.get(getAbsolutePath(fi1.getRelativePath())));
-                            iter1.remove();
+                        LOG.debug("File {1} was locally deleted",sentFileInfo.getRelativePath());
 
-                        } catch (IOException e) {
-                            e.printStackTrace();
-                        }
+                        AbstractMsg msg=new DeleteFileMsg(localAddr,sentFileInfo.getRelativePath());
+                        tasks.offer(msg);
+
                         break;
                     }
                 }
                 if (!isFound) {
-                    //file was created on source
-                    //send msg SEND
-                    //sendFile(new File(getAbsolutePath(fi1.getRelativePath())));
+
+                    LOG.debug("File {1} was created, request it",sentFileInfo.getRelativePath());
+
+                    AbstractMsg msg=new SendFileRequestMsg(localAddr,sentFileInfo, false);
+                    tasks.offer(msg);
+
                 }
             }
-
         }
+        // Exchange finished
+        LOG.debug("ListFiles comparison complete");
 
+        AbstractMsg msg=new FinishMsg(localAddr);
+        tasks.offer(msg);
     }
 
-    void saveDirectoryState(String path, List<FileInfo> files) {
-        //Запись списка файлов в
+
+    public void saveDirectoryState(String path, List<FileInfo> files) {
+        //Запись списка файлов в log
         try (OutputStream out = new FileOutputStream(path);
              ObjectOutputStream objFileOut = new ObjectOutputStream(out)) {
+
             for (FileInfo fi : files) {
                 objFileOut.writeObject(fi);
                 objFileOut.flush();
-                //objFileOut.close();
             }
+
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
-    List<FileInfo> getDirectoryState(String path) {
+    private List<FileInfo> getDirectoryState(String path) {
         List<FileInfo> result = new ArrayList<>();
 
         try (InputStream fin = new FileInputStream(path);
