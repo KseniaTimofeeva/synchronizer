@@ -8,7 +8,7 @@ import java.util.concurrent.BlockingQueue;
 /**
  * Created by Юлия on 04.06.2017.
  */
-public abstract class AbstractListener implements Listener{
+public abstract class AbstractListener implements Listener<AbstractMsg>{
     String localAddr;
     BlockingQueue<AbstractMsg> tasks;
     DirectoriesComparison dc;

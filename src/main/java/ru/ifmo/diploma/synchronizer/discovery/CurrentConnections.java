@@ -9,24 +9,12 @@ import java.io.OutputStream;
  * Created by ksenia on 30.05.2017.
  */
 public class CurrentConnections {
-    private InputStream in;
-    private OutputStream out;
     private ObjectInputStream objIn;
     private ObjectOutputStream objOut;
 
-    public CurrentConnections(InputStream in, OutputStream out, ObjectInputStream objIn, ObjectOutputStream objOut) {
-        this.in = in;
-        this.out = out;
+    public CurrentConnections(ObjectInputStream objIn, ObjectOutputStream objOut) {
         this.objIn = objIn;
         this.objOut = objOut;
-    }
-
-    public InputStream getIn() {
-        return in;
-    }
-
-    public OutputStream getOut() {
-        return out;
     }
 
     public ObjectInputStream getObjIn() {
@@ -40,9 +28,7 @@ public class CurrentConnections {
     @Override
     public String toString() {
         return "CurrentConnections{" +
-                "in=" + in +
-                ", out=" + out +
-                ", objIn=" + objIn +
+                "objIn=" + objIn +
                 ", objOut=" + objOut +
                 '}';
     }

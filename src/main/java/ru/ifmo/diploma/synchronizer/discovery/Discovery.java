@@ -5,7 +5,7 @@ import org.apache.logging.log4j.Logger;
 import ru.ifmo.diploma.synchronizer.Utils;
 import ru.ifmo.diploma.synchronizer.exchange.TReader;
 import ru.ifmo.diploma.synchronizer.exchange.TWriter;
-import ru.ifmo.diploma.synchronizer.protocol.exchange.AbstractMessage;
+import ru.ifmo.diploma.synchronizer.messages.AbstractMsg;
 import ru.ifmo.diploma.synchronizer.protocol.handshake.Credentials;
 import ru.ifmo.diploma.synchronizer.protocol.handshake.HandshakeMessage;
 import ru.ifmo.diploma.synchronizer.protocol.handshake.RoutingTable;
@@ -48,7 +48,7 @@ public class Discovery extends Thread{
     private Map<String, CurrentConnections> connections = new ConcurrentHashMap<>();    //@TODO add all connections
     private Set<String> currentHostAddresses;
     private byte[] localMagicPackage = {5, 4, 3, 2};
-    private BlockingQueue<AbstractMessage> tasks;
+    private BlockingQueue<AbstractMsg> tasks = new LinkedBlockingQueue<>();
     private List<Socket> socketList = new CopyOnWriteArrayList<>();
 
     private Map<String, Credentials> authorizationTable;
@@ -56,7 +56,6 @@ public class Discovery extends Thread{
     public Discovery(int localPort, Map<String, Credentials> authorizationTable) {
         this.localPort = localPort;
         this.authorizationTable = authorizationTable;
-        tasks = new LinkedBlockingQueue<>();
     }
 
     public int getLocalPort() {
@@ -71,7 +70,7 @@ public class Discovery extends Thread{
         return connections;
     }
 
-    public BlockingQueue<AbstractMessage> getTasks() {
+    public BlockingQueue<AbstractMsg> getTasks() {
         return tasks;
     }
 
@@ -90,12 +89,17 @@ public class Discovery extends Thread{
 
         Runtime.getRuntime().addShutdownHook(new Thread() {
             public void run() {
+
+                //@TODO saveDirectoryState()
+
                 for (Socket s : socketList) {
                     Utils.closeSocket(s);
                 }
                 System.out.println("End host " + localAddr);
             }
         });
+
+//        new TWriter(Discovery.this, socket, addr).start();
 
         currentHostAddresses = currentHostAddresses();
 
@@ -228,7 +232,7 @@ public class Discovery extends Thread{
                             Credentials credFromTable = authorizationTable.get(addr);
 
                             if (credFromTable == null || obj.equals(credFromTable)) {
-                                if ((connections.putIfAbsent(addr, new CurrentConnections(in, out, objIn, objOut))) != null) {
+                                if ((connections.putIfAbsent(addr, new CurrentConnections(objIn, objOut))) != null) {
                                     objOut.writeObject(new YesNoPackage(localAddr, false, "Repeat connection"));
                                     objOut.flush();
                                     LOG.warn(localAddr + ": Host " + addr + " is already connected");
@@ -257,7 +261,7 @@ public class Discovery extends Thread{
 
                     //checking directory
                     startReader = true;
-                    new TWriter(Discovery.this, socket, addr).start();
+//                    new TWriter(Discovery.this, socket, addr).start();
                     new TReader(Discovery.this, socket, addr).start();
 
                 } catch (ClassNotFoundException e) {
@@ -327,7 +331,7 @@ public class Discovery extends Thread{
                                 LOG.warn(localAddr + ": Not authorized by " + ((YesNoPackage) obj).getFromAddr());
                                 return;
                             }
-                            connections.put(addr, new CurrentConnections(in, out, objIn, objOut));
+                            connections.put(addr, new CurrentConnections(objIn, objOut));
                             socketList.add(socket);
                             LOG.debug(localAddr + ": List of connections " + connections);
                             LOG.info(localAddr + ": connected to " + addr);
@@ -345,7 +349,7 @@ public class Discovery extends Thread{
                     //checking directory
                     startReader = true;
                     new TReader(Discovery.this, socket, addr).start();
-                    new TWriter(Discovery.this, socket, addr).start();
+//                    new TWriter(Discovery.this, socket, addr).start();
 
                 } catch (ClassNotFoundException e) {
                     LOG.error(localAddr + ": Data transferring error from " + addr);

@@ -32,7 +32,7 @@ public class SendFileRequestListener extends AbstractListener{
                 while ((l = in.read(buf)) > 0) {
                     bout.write(buf, 0, l);
                 }
-                out.write(bout.toByteArray());
+                out.write(bout.toByteArray());  //??? обернуть в FileMsgExample и отправить
                 out.flush();
 
             } catch (IOException e) {

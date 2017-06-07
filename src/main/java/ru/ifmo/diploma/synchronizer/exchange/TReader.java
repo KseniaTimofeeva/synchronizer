@@ -2,25 +2,27 @@ package ru.ifmo.diploma.synchronizer.exchange;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import ru.ifmo.diploma.synchronizer.DirectoriesComparison;
 import ru.ifmo.diploma.synchronizer.Utils;
 import ru.ifmo.diploma.synchronizer.discovery.CurrentConnections;
 import ru.ifmo.diploma.synchronizer.discovery.Discovery;
-import ru.ifmo.diploma.synchronizer.exchange.listeners.Listener;
-import ru.ifmo.diploma.synchronizer.exchange.listeners.SendFileListListener;
-import ru.ifmo.diploma.synchronizer.exchange.listeners.SendFileListener;
-import ru.ifmo.diploma.synchronizer.protocol.exchange.AbstractMessage;
+import ru.ifmo.diploma.synchronizer.listeners.CopyFileListener;
+import ru.ifmo.diploma.synchronizer.listeners.DeleteFileListener;
+import ru.ifmo.diploma.synchronizer.listeners.Listener;
+import ru.ifmo.diploma.synchronizer.listeners.RenameFileListener;
+import ru.ifmo.diploma.synchronizer.listeners.SendFileRequestListener;
+import ru.ifmo.diploma.synchronizer.listeners.SendListFilesListener;
+import ru.ifmo.diploma.synchronizer.listeners.TransferFileListener;
+import ru.ifmo.diploma.synchronizer.messages.AbstractMsg;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
-import java.io.OutputStream;
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 
 /**
@@ -32,11 +34,11 @@ public class TReader extends Thread {
     private Discovery discovery;
     private Socket socket;
     private String addr;
-    private List<Listener<AbstractMessage>> listeners = new ArrayList<>();
+    private List<Listener<AbstractMsg>> listeners = new ArrayList<>();
     private String localAddr;
     private CurrentConnections currentConnections;
-    private BlockingQueue<AbstractMessage> tasks;
-    private List<Socket> socketList;
+    private BlockingQueue<AbstractMsg> tasks;
+    private DirectoriesComparison dc = new DirectoriesComparison();
 
     public TReader(Discovery discovery, Socket socket, String addr) {
         this.discovery = discovery;
@@ -45,13 +47,17 @@ public class TReader extends Thread {
     }
 
     private void addListeners() {
-        listeners.add(new SendFileListener(localAddr, tasks));
-        listeners.add(new SendFileListListener(localAddr, tasks));
+        listeners.add(new CopyFileListener(localAddr, tasks, dc));
+        listeners.add(new DeleteFileListener(localAddr, tasks, dc));
+        listeners.add(new RenameFileListener(localAddr, tasks, dc));
+        listeners.add(new SendFileRequestListener(localAddr, tasks, dc, currentConnections.getObjOut()));
+        listeners.add(new SendListFilesListener(localAddr, tasks, dc, currentConnections.getObjOut()));
+        listeners.add(new TransferFileListener(localAddr, tasks, dc));
     }
 
-    private void notifyListeners(AbstractMessage msg) {
-        for (Listener<AbstractMessage> listener : listeners) {
-            listener.handle(msg, currentConnections);   //@TODO add inputstream
+    private void notifyListeners(AbstractMsg msg) {
+        for (Listener<AbstractMsg> listener : listeners) {
+            listener.handle(msg);
         }
     }
 
@@ -64,7 +70,7 @@ public class TReader extends Thread {
         LOG.debug(localAddr + ": reader to " + addr + " started");
 
         tasks = discovery.getTasks();
-        socketList = discovery.getSocketList();
+        List<Socket> socketList = discovery.getSocketList();
 
         addListeners();
 
@@ -73,8 +79,6 @@ public class TReader extends Thread {
 
         LOG.debug(localAddr + ": reader: Current connections: " + currentConnections + " with host " + addr);
 
-        InputStream in = currentConnections.getIn();
-//        OutputStream out = currentConnections.getOut();
         ObjectInputStream objIn = currentConnections.getObjIn();
 //        ObjectOutputStream objOut = currentConnections.getObjOut();
 
@@ -84,12 +88,12 @@ public class TReader extends Thread {
 
                 Object obj = objIn.readObject();
 
-                if (!(obj instanceof AbstractMessage)) {
-                    LOG.error(localAddr + ": Unexpected mesage");
+                if (!(obj instanceof AbstractMsg)) {
+                    LOG.error(localAddr + ": Unexpected message");
                     return;
                 }
-                LOG.debug(localAddr + ": reader: AbstrMsg " + obj + " from " + ((AbstractMessage) obj).getFrom());
-                notifyListeners((AbstractMessage) obj);
+                LOG.debug(localAddr + ": reader: AbstrMsg " + obj + " from " + ((AbstractMsg) obj).getSender());
+                notifyListeners((AbstractMsg) obj);
             }
         } catch (IOException | ClassNotFoundException e) {
             LOG.error(localAddr + ": Reader error. Read object error");

@@ -22,10 +22,16 @@ public class SendListFilesListener extends AbstractListener {
     public void handle(AbstractMsg msg) {
 
         if (msg.getType() == MessageType.SEND_LIST_FILES) {
+
+            //??? Отправляет ResultMsg, что список файлов получен
+            //??? запускает сравнение списков файлов
+            //??? dc кладет сообщения в writer
+
+
             try {
                 out.writeObject(dc.getListFiles());
                 out.flush();
-                tasks.offer(new ResultMsg(msg.getSender(), MessageState.SUCCESS, msg.getType()));
+                tasks.offer(new ResultMsg(msg.getSender(), MessageState.SUCCESS, msg.getType())); //?ответ должен слать тот, кто получил список
 
             } catch (IOException e) {
                 tasks.offer(new ResultMsg(msg.getSender(), MessageState.FAILED, msg.getType()));
