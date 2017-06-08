@@ -17,8 +17,9 @@ public class SendFileRequestMsg extends AbstractMsg implements Externalizable {
     public SendFileRequestMsg() {
     }
 
-    public SendFileRequestMsg(String sender, FileInfo fileInfo, boolean changeName) {
-        super(sender);
+    //unicast
+    public SendFileRequestMsg(String sender, String recipient, FileInfo fileInfo, boolean changeName) {
+        super(sender, recipient);
         super.type = MessageType.SEND_FILE_REQUEST;
         this.fileInfo = fileInfo;
         this.changeName = changeName;

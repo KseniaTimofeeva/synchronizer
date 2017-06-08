@@ -16,8 +16,17 @@ public class FileMsg extends AbstractMsg implements Externalizable{
 
     public FileMsg(){}
 
+    //broadcast
     public FileMsg(String sender, byte[] file, String relativePath){
         super(sender);
+        type=MessageType.FILE;
+        this.file=file;
+        this.relativePath=relativePath;
+    }
+
+    //unicast
+    public FileMsg(String sender, String recipient, byte[] file, String relativePath){
+        super(sender, recipient);
         type=MessageType.FILE;
         this.file=file;
         this.relativePath=relativePath;

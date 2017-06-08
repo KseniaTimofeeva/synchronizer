@@ -2,18 +2,13 @@ package ru.ifmo.diploma.synchronizer.exchange;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import ru.ifmo.diploma.synchronizer.Synchronizer;
 import ru.ifmo.diploma.synchronizer.discovery.CurrentConnections;
-import ru.ifmo.diploma.synchronizer.discovery.Discovery;
 import ru.ifmo.diploma.synchronizer.Utils;
 import ru.ifmo.diploma.synchronizer.messages.AbstractMsg;
-import ru.ifmo.diploma.synchronizer.messages.SendListFilesMsg;
 
 import java.io.IOException;
-import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
-import java.net.Socket;
-import java.util.Arrays;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 
@@ -23,66 +18,71 @@ import java.util.concurrent.BlockingQueue;
 public class TWriter extends Thread {
     private static final Logger LOG = LogManager.getLogger(TWriter.class);
 
-    private Discovery discovery;
-    private Socket socket;
-    private String addr;
-    private CurrentConnections currentConnections;
+    private Synchronizer synchronizer;
+    private BlockingQueue<AbstractMsg> writerTasks;
 
-    public TWriter(Discovery discovery, Socket socket, String addr) {
-        this.discovery = discovery;
-        this.socket = socket;
-        this.addr = addr;
+    public TWriter(Synchronizer synchronizer, BlockingQueue<AbstractMsg> writerTasks) {
+        this.synchronizer = synchronizer;
+        this.writerTasks = writerTasks;
     }
 
+    public void send(AbstractMsg msg) {
+        writerTasks.offer(msg);
+    }
 
     @Override
     public void run() {
 
-        int localPort = discovery.getLocalPort();
-        String localAddr = discovery.getLocalAddr();
+        String localAddr = synchronizer.getLocalAddr();
 
-        LOG.debug(localAddr + ": writer to " + addr + " started");
+        LOG.debug(localAddr + ": writer started");
 
-        BlockingQueue<AbstractMsg> tasks = discovery.getTasks();
-        Map<String, CurrentConnections> connections = discovery.getConnections();
-        CurrentConnections currentConnections = connections.get(addr);
-        List<Socket> socketList = discovery.getSocketList();
+        Map<String, CurrentConnections> connections = synchronizer.getConnections();
 
-        LOG.debug(localAddr + ": writer: Current connections: " + currentConnections + " with host " + addr);
-
-//        ObjectInputStream objIn = currentConnections.getObjIn();
-        ObjectOutputStream objOut = currentConnections.getObjOut();
 
         try {
-            LOG.debug(localAddr + ": SendListFilesMsg to " + addr);
-            objOut.writeObject(new SendListFilesMsg(localAddr));  //??? формируем (оборачиваем) и отправляем список файлов без запроса
-            objOut.flush();
-
-            LOG.debug(localAddr + ": ready for writing to " + addr);
+            LOG.trace(localAddr + ": writer is ready for writing");
             while (!isInterrupted()) {
 
-                AbstractMsg msg = tasks.take();
-                LOG.debug(localAddr + ": " + msg + " to " + addr);
+                AbstractMsg msg = writerTasks.take();
 
-                objOut.writeObject(msg);
-                objOut.flush();
+                String addr = null;
+                if (!msg.isBroadcast()) {
 
+                    try {
+                        LOG.trace(localAddr + ": writer: " + msg.getType() + " to " + msg.getRecipient());
+                        addr = msg.getRecipient();
+                        ObjectOutputStream objOut = connections.get(msg.getRecipient()).getObjOut();
+                        objOut.writeObject(msg);
+                        objOut.flush();
+                    } catch (IOException e) {
+                        LOG.error(localAddr + ": Writer error. Write object error");
+                        Utils.closeSocket(connections.remove(addr).getSocket());
+                    }
+                } else {
+                    LOG.debug(localAddr + ": writer: broadcast " + msg.getType());
+                    for (Map.Entry<String, CurrentConnections> entry : connections.entrySet()) {
 
+                        try {
+                            LOG.debug(localAddr + ": broadcast to " + entry.getKey());
+                            addr = entry.getKey();
+                            entry.getValue().getObjOut().writeObject(msg);
+                            entry.getValue().getObjOut().flush();
+                        } catch (IOException e) {
+                            LOG.error(localAddr + ": Writer error. Write object error");
+                            Utils.closeSocket(connections.remove(addr).getSocket());
+                        }
+                    }
+                }
             }
-
         } catch (InterruptedException e) {
-            LOG.debug(localAddr + ": Interrupted " + Arrays.toString(e.getStackTrace()));
+            LOG.debug(localAddr + ": Writer interrupted ");
             interrupt();
-        } catch (IOException e) {
-            LOG.error(localAddr + ": Writer error. Write object error");
-            LOG.debug("writer: " + Arrays.toString(e.getStackTrace()));
         } finally {
-            LOG.error(localAddr + ": Writer error. " + addr + " stopped");
-            connections.remove(addr);
-            socketList.remove(socket);
-            Utils.closeSocket(socket);
+            LOG.error(localAddr + ": Writer error");
+            for (CurrentConnections con : connections.values()) {
+                Utils.closeSocket(con.getSocket());
+            }
         }
     }
-
-
 }

@@ -14,8 +14,16 @@ public class DeleteFileMsg extends AbstractMsg implements Externalizable{
 
     public DeleteFileMsg(){}
 
+    //broadcast
     public DeleteFileMsg(String sender, String relativePath){
         super(sender);
+        type= MessageType.DELETE_FILE;
+        this.relativePath=relativePath;
+    }
+
+    //unicast
+    public DeleteFileMsg(String sender, String recipient, String relativePath){
+        super(sender, recipient);
         type= MessageType.DELETE_FILE;
         this.relativePath=relativePath;
     }

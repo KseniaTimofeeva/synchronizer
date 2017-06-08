@@ -2,114 +2,79 @@ package ru.ifmo.diploma.synchronizer.discovery;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import ru.ifmo.diploma.synchronizer.FileInfo;
+import ru.ifmo.diploma.synchronizer.Synchronizer;
 import ru.ifmo.diploma.synchronizer.Utils;
 import ru.ifmo.diploma.synchronizer.exchange.TReader;
-import ru.ifmo.diploma.synchronizer.exchange.TWriter;
 import ru.ifmo.diploma.synchronizer.messages.AbstractMsg;
 import ru.ifmo.diploma.synchronizer.protocol.handshake.Credentials;
 import ru.ifmo.diploma.synchronizer.protocol.handshake.HandshakeMessage;
 import ru.ifmo.diploma.synchronizer.protocol.handshake.RoutingTable;
 import ru.ifmo.diploma.synchronizer.protocol.handshake.YesNoPackage;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.io.OutputStream;
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
-import java.net.NetworkInterface;
-import java.net.ServerSocket;
-import java.net.Socket;
-import java.net.SocketAddress;
-import java.net.SocketException;
-import java.net.UnknownHostException;
-import java.util.Arrays;
-import java.util.Enumeration;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.io.*;
+import java.net.*;
+import java.util.*;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.LinkedBlockingQueue;
 
 
 /**
  * Created by ksenia on 21.05.2017.
  */
-public class Discovery extends Thread{
+public class Discovery {
     private static final Logger LOG = LogManager.getLogger(Discovery.class);
 
+    private Synchronizer synchronizer;
     private int localPort;
-    private String localAddr;
-    private Map<String, CurrentConnections> connections = new ConcurrentHashMap<>();    //@TODO add all connections
-    private Set<String> currentHostAddresses;
-    private byte[] localMagicPackage = {5, 4, 3, 2};
-    private BlockingQueue<AbstractMsg> tasks = new LinkedBlockingQueue<>();
-    private List<Socket> socketList = new CopyOnWriteArrayList<>();
-
     private Map<String, Credentials> authorizationTable;
+    private String startPath;
+    private List<FileInfo> filesInfo;
+    private BlockingQueue<AbstractMsg> readerTasks;
+    private BlockingQueue<AbstractMsg> writerTasks;
+    private String localAddr;
+    private Map<String, CurrentConnections> connections;
+    private Set<String> currentHostAddresses;
+    private ServerSocket serverSocket;
+    private byte[] localMagicPackage = {5, 4, 3, 2};
 
-    public Discovery(int localPort, Map<String, Credentials> authorizationTable) {
-        this.localPort = localPort;
-        this.authorizationTable = authorizationTable;
+
+    public Discovery(Synchronizer synchronizer) {
+        this.synchronizer = synchronizer;
+        localAddr = synchronizer.getLocalAddr();
+        localPort = synchronizer.getLocalPort();
+        authorizationTable = synchronizer.getAuthorizationTable();
+        startPath = synchronizer.getStartPath();
+        filesInfo = synchronizer.getFilesInfo();
+        readerTasks = synchronizer.getReaderTasks();
+        writerTasks = synchronizer.getWriterTasks();
+        connections = synchronizer.getConnections();
     }
 
-    public int getLocalPort() {
-        return localPort;
+//    public void broadcast(AbstractMsg msg) {
+//        for (CurrentConnections con : connections.values()) {
+//            TWriter writer = con.getWriter();
+//
+//            if (writer != null)
+//                writer.send(msg);
+//        }
+//    }
+
+
+    public ServerSocket getServerSocket() {
+        return serverSocket;
     }
 
-    public String getLocalAddr() {
-        return localAddr;
-    }
-
-    public Map<String, CurrentConnections> getConnections() {
-        return connections;
-    }
-
-    public BlockingQueue<AbstractMsg> getTasks() {
-        return tasks;
-    }
-
-    public List<Socket> getSocketList() {
-        return socketList;
-    }
-
-    @Override
-    public void run() {
-
-        try {
-            localAddr = InetAddress.getLocalHost().getHostAddress() + ":" + localPort;
-        } catch (UnknownHostException e) {
-            LOG.debug("discovery: " + Arrays.toString(e.getStackTrace()));
-        }
-
-        Runtime.getRuntime().addShutdownHook(new Thread() {
-            public void run() {
-
-                //@TODO saveDirectoryState()
-
-                for (Socket s : socketList) {
-                    Utils.closeSocket(s);
-                }
-                System.out.println("End host " + localAddr);
-            }
-        });
-
-//        new TWriter(Discovery.this, socket, addr).start();
+    public void startDiscovery() {
 
         currentHostAddresses = currentHostAddresses();
 
         readRoutesAndConnect(authorizationTable);
 
-        new AcceptThread().start(); //стартуем поток для входящих соединений
+        startAccept(); //оставляем поток принимать входящие соединения
     }
 
     private void readRoutesAndConnect(Map<String, Credentials> authTable) {
-        LOG.debug(localAddr + " start routing");
+        LOG.trace(localAddr + " start routing");
         for (Map.Entry<String, Credentials> entry : authTable.entrySet()) {
             String addr = entry.getKey();
 
@@ -135,8 +100,8 @@ public class Discovery extends Thread{
     }
 
     private Set<String> currentHostAddresses() {
-        currentHostAddresses = new HashSet<>();
         //получаем список доступных адресов на текущем хосте
+        currentHostAddresses = new HashSet<>();
         Enumeration<NetworkInterface> n;
         try {
             n = NetworkInterface.getNetworkInterfaces();
@@ -150,7 +115,7 @@ public class Discovery extends Thread{
                 }
             }
         } catch (SocketException e) {
-            LOG.debug(localAddr + ": Cannot get local host addresses " + Arrays.toString(e.getStackTrace()));
+            LOG.error(localAddr + ": Cannot get local host addresses");
         }
         return currentHostAddresses;
     }
@@ -159,20 +124,18 @@ public class Discovery extends Thread{
         return currentHostAddresses.contains(addr);
     }
 
-    private class AcceptThread extends Thread {
-        @Override
-        public void run() {
+    private void startAccept() {
 
-            try (ServerSocket ssocket = new ServerSocket(localPort)) {   //стартуем на заданном порту
-                LOG.debug(localAddr + ": Server started on " + ssocket);
+        try (ServerSocket ssocket = new ServerSocket(localPort)) {   //стартуем на заданном порту
+            LOG.debug(localAddr + ": Server started on " + ssocket);
+            serverSocket = ssocket;
 
-                while (!isInterrupted()) {
-                    Socket socket = ssocket.accept();
-                    new InputConnectionThread(socket).start();
-                }
-            } catch (IOException e) {
-                LOG.error(localAddr + ": Server error");
+            while (!Thread.currentThread().isInterrupted()) {
+                Socket socket = ssocket.accept();
+                new InputConnectionThread(socket).start();
             }
+        } catch (IOException e) {
+            LOG.error(localAddr + ": Server error");
         }
     }
 
@@ -185,15 +148,15 @@ public class Discovery extends Thread{
     private class InputConnectionThread extends Thread {
         private String addr;
         private Socket socket;
-        private boolean startReader = false;
 
         private InputConnectionThread(Socket socket) {
-            super();
             this.socket = socket;
         }
 
         @Override
         public void run() {
+
+            boolean interrupted = false;
 
             try {
                 InputStream in = socket.getInputStream();
@@ -204,7 +167,7 @@ public class Discovery extends Thread{
                 byte[] magicPackage = new byte[len];
                 System.arraycopy(buf, 0, magicPackage, 0, len);
 
-                LOG.debug(localAddr + ": Received magic package " + Arrays.toString(magicPackage));
+                LOG.trace(localAddr + ": Received magic package " + Arrays.toString(magicPackage));
 
                 if (!Arrays.equals(localMagicPackage, magicPackage)) {
                     LOG.error(localAddr + ": Wrong magic package");
@@ -232,14 +195,13 @@ public class Discovery extends Thread{
                             Credentials credFromTable = authorizationTable.get(addr);
 
                             if (credFromTable == null || obj.equals(credFromTable)) {
-                                if ((connections.putIfAbsent(addr, new CurrentConnections(objIn, objOut))) != null) {
+                                if ((connections.putIfAbsent(addr, new CurrentConnections(this, socket, objIn, objOut))) != null) {
                                     objOut.writeObject(new YesNoPackage(localAddr, false, "Repeat connection"));
                                     objOut.flush();
                                     LOG.warn(localAddr + ": Host " + addr + " is already connected");
                                     return;
                                 }
-                                socketList.add(socket);
-                                LOG.debug(localAddr + ": List of connections " + connections);
+                                LOG.trace(localAddr + ": List of connections " + connections);
                                 objOut.writeObject(new YesNoPackage(localAddr, true, ""));
                                 objOut.flush();
                                 objOut.writeObject(new RoutingTable(localAddr, authorizationTable));
@@ -259,11 +221,9 @@ public class Discovery extends Thread{
                         }
                     }
 
-                    //checking directory
-                    startReader = true;
-//                    new TWriter(Discovery.this, socket, addr).start();
-                    new TReader(Discovery.this, socket, addr).start();
-
+                    //current thread starts reading msgs
+                    new TReader(this, synchronizer, readerTasks, socket, addr).startReader();
+                    interrupted = true;
                 } catch (ClassNotFoundException e) {
                     LOG.error(localAddr + ": Data transferring error");
                 }
@@ -274,15 +234,14 @@ public class Discovery extends Thread{
                     LOG.error(localAddr + ": Socket error " + socket);
                 }
             } finally {
-                if (!startReader) {
+                if (!interrupted) {
                     LOG.error(localAddr + ": Remote host is not authorized. Socket closed");
-                    if (addr != null) {
-                        LOG.error(localAddr + ": " + addr + " stopped");
-                        connections.remove(addr);
-                        socketList.remove(socket);
-                    }
-                    Utils.closeSocket(socket);
                 }
+                if (addr != null) {
+                    LOG.error(localAddr + ": " + addr + " stopped");
+                    connections.remove(addr);
+                }
+                Utils.closeSocket(socket);
             }
         }
     }
@@ -290,10 +249,8 @@ public class Discovery extends Thread{
     private class OutputConnectionThread extends Thread {
         private String addr;
         private Socket socket;
-        private boolean startReader = false;
 
         private OutputConnectionThread(String addr, Socket socket) {
-            super();
             this.addr = addr;
             this.socket = socket;
         }
@@ -331,9 +288,8 @@ public class Discovery extends Thread{
                                 LOG.warn(localAddr + ": Not authorized by " + ((YesNoPackage) obj).getFromAddr());
                                 return;
                             }
-                            connections.put(addr, new CurrentConnections(objIn, objOut));
-                            socketList.add(socket);
-                            LOG.debug(localAddr + ": List of connections " + connections);
+                            connections.put(addr, new CurrentConnections(this, socket, objIn, objOut));
+                            LOG.trace(localAddr + ": List of connections " + connections);
                             LOG.info(localAddr + ": connected to " + addr);
 
                             objOut.writeObject(new RoutingTable(localAddr, authorizationTable));
@@ -346,10 +302,8 @@ public class Discovery extends Thread{
                         }
                     }
 
-                    //checking directory
-                    startReader = true;
-                    new TReader(Discovery.this, socket, addr).start();
-//                    new TWriter(Discovery.this, socket, addr).start();
+                    //current thread starts reading msgs
+                    new TReader(this, synchronizer, readerTasks, socket, addr).startReader();
 
                 } catch (ClassNotFoundException e) {
                     LOG.error(localAddr + ": Data transferring error from " + addr);
@@ -357,12 +311,9 @@ public class Discovery extends Thread{
             } catch (IOException e) {
                 LOG.error(localAddr + ": Connection error with host " + addr);
             } finally {
-                if (!startReader) {
-                    LOG.error(localAddr + ": " + addr + " stopped");
-                    connections.remove(addr);
-                    socketList.remove(socket);
-                    Utils.closeSocket(socket);
-                }
+                LOG.error(localAddr + ": " + addr + " stopped");
+                connections.remove(addr);
+                Utils.closeSocket(socket);
             }
         }
     }
@@ -371,7 +322,7 @@ public class Discovery extends Thread{
         Map<String, Credentials> diffAuthTable = new HashMap<>();
         diffAuthTable.putAll(authTable);
         diffAuthTable.entrySet().removeAll(authorizationTable.entrySet());
-        LOG.debug(localAddr + ": " + diffAuthTable);
+        LOG.trace(localAddr + ": " + diffAuthTable);
 
         if (diffAuthTable.isEmpty()) {
             return;

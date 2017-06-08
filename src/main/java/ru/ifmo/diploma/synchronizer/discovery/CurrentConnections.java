@@ -1,18 +1,26 @@
 package ru.ifmo.diploma.synchronizer.discovery;
 
+import ru.ifmo.diploma.synchronizer.exchange.TWriter;
+
 import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
+import java.net.Socket;
 
 /**
  * Created by ksenia on 30.05.2017.
  */
 public class CurrentConnections {
+    private Thread thread;
+    private Socket socket;
     private ObjectInputStream objIn;
     private ObjectOutputStream objOut;
+//    private TWriter writer;
 
-    public CurrentConnections(ObjectInputStream objIn, ObjectOutputStream objOut) {
+    public CurrentConnections(Thread thread, Socket socket, ObjectInputStream objIn, ObjectOutputStream objOut) {
+        this.thread = thread;
+        this.socket = socket;
         this.objIn = objIn;
         this.objOut = objOut;
     }
@@ -24,6 +32,22 @@ public class CurrentConnections {
     public ObjectOutputStream getObjOut() {
         return objOut;
     }
+
+    public Socket getSocket() {
+        return socket;
+    }
+
+    public Thread getThread() {
+        return thread;
+    }
+
+    //    public TWriter getWriter() {
+//        return writer;
+//    }
+
+//    public void setWriter(TWriter writer) {
+//        this.writer = writer;
+//    }
 
     @Override
     public String toString() {

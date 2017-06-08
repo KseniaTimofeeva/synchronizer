@@ -14,8 +14,17 @@ public class RenameFileMsg extends AbstractMsg implements Externalizable{
 
     public  RenameFileMsg(){}
 
+    //broadcast
     public RenameFileMsg(String sender, String relativePath, String newRelativePath){
         super(sender);
+        super.type=MessageType.RENAME_FILE;
+        this.oldRelativePath=relativePath;
+        this.newRelativePath=newRelativePath;
+    }
+
+    //unicast
+    public RenameFileMsg(String sender, String recipient, String relativePath, String newRelativePath){
+        super(sender, recipient);
         super.type=MessageType.RENAME_FILE;
         this.oldRelativePath=relativePath;
         this.newRelativePath=newRelativePath;

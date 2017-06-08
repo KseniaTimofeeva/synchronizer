@@ -11,14 +11,15 @@ import java.util.List;
 /*
  * Created by Юлия on 30.05.2017.
  */
-public class SendListFilesMsg extends AbstractMsg implements Externalizable{
+public class ListFilesMsg extends AbstractMsg implements Externalizable{
     private List<FileInfo> listFiles;
 
-    public SendListFilesMsg(){}
+    public ListFilesMsg(){}
 
-    public SendListFilesMsg(String sender, List<FileInfo> listFiles){
-        super(sender);
-        super.type=MessageType.SEND_LIST_FILES;
+    //unicast
+    public ListFilesMsg(String sender, String recipient, List<FileInfo> listFiles){
+        super(sender, recipient);
+        super.type=MessageType.LIST_FILES;
         this.listFiles=listFiles;
     }
 

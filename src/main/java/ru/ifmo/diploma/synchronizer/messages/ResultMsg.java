@@ -15,8 +15,9 @@ public class ResultMsg extends AbstractMsg implements Externalizable {
     public ResultMsg() {
     }
 
-    public ResultMsg(String sender, MessageState state, AbstractMsg requestMsg) {
-        super(sender);
+    //unicast
+    public ResultMsg(String sender, String recipient, MessageState state, AbstractMsg requestMsg) {
+        super(sender, recipient);
         super.type = MessageType.RESULT;
         this.state = state;
         this.requestMsg = requestMsg;

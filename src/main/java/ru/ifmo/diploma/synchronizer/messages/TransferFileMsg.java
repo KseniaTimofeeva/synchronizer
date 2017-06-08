@@ -14,8 +14,17 @@ public class TransferFileMsg extends AbstractMsg implements Externalizable{
 
     public TransferFileMsg(){}
 
+    //broadcast
     public TransferFileMsg(String sender, String relativePath, String newRelativePath){
         super(sender);
+        super.type=MessageType.TRANSFER_FILE;
+        this.oldRelativePath=relativePath;
+        this.newRelativePath=newRelativePath;
+    }
+
+    //unicast
+    public TransferFileMsg(String sender, String recipient, String relativePath, String newRelativePath){
+        super(sender, recipient);
         super.type=MessageType.TRANSFER_FILE;
         this.oldRelativePath=relativePath;
         this.newRelativePath=newRelativePath;

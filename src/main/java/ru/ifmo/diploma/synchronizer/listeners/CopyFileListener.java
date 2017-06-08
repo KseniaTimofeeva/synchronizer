@@ -1,5 +1,8 @@
 package ru.ifmo.diploma.synchronizer.listeners;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import ru.ifmo.diploma.synchronizer.DirectoriesComparison;
 import ru.ifmo.diploma.synchronizer.messages.*;
 
 import java.io.IOException;
@@ -8,12 +11,11 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.concurrent.BlockingQueue;
 
-import ru.ifmo.diploma.synchronizer.DirectoriesComparison;
-
 /*
  * Created by Юлия on 04.06.2017.
  */
 public class CopyFileListener extends AbstractListener {
+    private static final Logger LOG = LogManager.getLogger(CopyFileListener.class);
 
     public CopyFileListener(String localAddr, BlockingQueue<AbstractMsg> tasks, DirectoriesComparison dc) {
         super(localAddr, tasks, dc);
@@ -22,6 +24,8 @@ public class CopyFileListener extends AbstractListener {
     @Override
     public void handle(AbstractMsg msg) {
         if (msg.getType() == MessageType.COPY_FILE) {
+            LOG.debug("{}: Listener: COPY_FILE from {}", localAddr, msg.getSender());
+
             CopyFileMsg copyMsg = (CopyFileMsg) msg;
             Path oldPath = Paths.get(dc.getAbsolutePath(copyMsg.getRelativePath()));
             String p = dc.getAbsolutePath(dc.getAbsolutePath(copyMsg.getNewRelativePath()));
@@ -33,10 +37,10 @@ public class CopyFileListener extends AbstractListener {
                     Files.createDirectories(newDirPath);
                     Files.copy(oldPath, newPath);
                     dc.setCreationTime(newPath.toString(), copyMsg.getCreationTime());
-                    tasks.offer(new ResultMsg(msg.getSender(), MessageState.SUCCESS, msg));
+                    tasks.offer(new ResultMsg(localAddr, msg.getSender(), MessageState.SUCCESS, msg));
 
                 } catch (IOException e) {
-                    tasks.offer(new ResultMsg(msg.getSender(), MessageState.FAILED, msg));
+                    tasks.offer(new ResultMsg(localAddr, msg.getSender(), MessageState.FAILED, msg));
 
                     e.printStackTrace();
                 }

@@ -16,8 +16,18 @@ public class CopyFileMsg extends AbstractMsg implements Externalizable {
     public CopyFileMsg() {
     }
 
+    //broadcast
     public CopyFileMsg(String sender, String relativePath, String newRelativePath, long creationTime) {
         super(sender);
+        super.type = MessageType.COPY_FILE;
+        this.relativePath = relativePath;
+        this.newRelativePath = newRelativePath;
+        this.creationTime = creationTime;
+    }
+
+    //unicast
+    public CopyFileMsg(String sender, String recipient, String relativePath, String newRelativePath, long creationTime) {
+        super(sender, recipient);
         super.type = MessageType.COPY_FILE;
         this.relativePath = relativePath;
         this.newRelativePath = newRelativePath;

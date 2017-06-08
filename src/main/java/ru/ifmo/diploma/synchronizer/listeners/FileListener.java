@@ -1,5 +1,7 @@
 package ru.ifmo.diploma.synchronizer.listeners;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import ru.ifmo.diploma.synchronizer.DirectoriesComparison;
 import ru.ifmo.diploma.synchronizer.messages.*;
 
@@ -12,6 +14,7 @@ import java.util.concurrent.BlockingQueue;
  * Created by Юлия on 06.06.2017.
  */
 public class FileListener extends AbstractListener{
+    private static final Logger LOG = LogManager.getLogger(FileListener.class);
 
     public FileListener(String localAddr, BlockingQueue<AbstractMsg> tasks, DirectoriesComparison dc){
         super(localAddr, tasks, dc);
@@ -20,16 +23,18 @@ public class FileListener extends AbstractListener{
     @Override
     public void handle(AbstractMsg msg) {
         if(msg.getType()== MessageType.FILE){
+            LOG.debug("{}: Listener: FILE from {}", localAddr, msg.getSender());
+
             FileMsg fileMsg=(FileMsg)msg;
             byte[] fileContent=fileMsg.getFile();
 
             try(OutputStream out = new FileOutputStream(dc.getAbsolutePath(fileMsg.getRelativePath()))){
                 out.write(fileContent);
-                tasks.offer(new ResultMsg(msg.getSender(), MessageState.SUCCESS, msg));
+                tasks.offer(new ResultMsg(localAddr, msg.getSender(), MessageState.SUCCESS, msg));
 
             }
             catch(IOException e){
-                tasks.offer(new ResultMsg(msg.getSender(), MessageState.FAILED, msg));
+                tasks.offer(new ResultMsg(localAddr, msg.getSender(), MessageState.FAILED, msg));
 
             }
 

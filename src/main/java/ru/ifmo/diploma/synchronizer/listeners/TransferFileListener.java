@@ -1,5 +1,7 @@
 package ru.ifmo.diploma.synchronizer.listeners;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import ru.ifmo.diploma.synchronizer.DirectoriesComparison;
 import ru.ifmo.diploma.synchronizer.messages.*;
 
@@ -14,6 +16,7 @@ import java.util.concurrent.BlockingQueue;
  * Created by Юлия on 04.06.2017.
  */
 public class TransferFileListener extends AbstractListener {
+    private static final Logger LOG = LogManager.getLogger(TransferFileListener.class);
 
     public TransferFileListener(String localAddr, BlockingQueue<AbstractMsg> tasks, DirectoriesComparison dc) {
         super(localAddr, tasks, dc);
@@ -22,6 +25,7 @@ public class TransferFileListener extends AbstractListener {
     @Override
     public void handle(AbstractMsg msg) {
         if(msg.getType()== MessageType.TRANSFER_FILE){
+            LOG.debug("{}: Listener: send TRANSFER_FILE to {}", localAddr, msg.getRecipient());
 
             TransferFileMsg transMsg=(TransferFileMsg)msg;
             Path oldPath = Paths.get(dc.getAbsolutePath(transMsg.getOldRelativePath()));
@@ -33,10 +37,10 @@ public class TransferFileListener extends AbstractListener {
                 try {
                     Files.createDirectories(newDirPath);
                     Files.move(oldPath, newPath, StandardCopyOption.REPLACE_EXISTING);
-                    tasks.offer(new ResultMsg(localAddr, MessageState.SUCCESS, msg));
+                    tasks.offer(new ResultMsg(localAddr, msg.getSender(), MessageState.SUCCESS, msg));
 
                 } catch (IOException e) {
-                    tasks.offer(new ResultMsg(localAddr, MessageState.FAILED, msg));
+                    tasks.offer(new ResultMsg(localAddr, msg.getSender(), MessageState.FAILED, msg));
                     e.printStackTrace();
                 }
             }
