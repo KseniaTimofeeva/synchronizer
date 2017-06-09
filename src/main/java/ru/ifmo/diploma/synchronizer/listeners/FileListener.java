@@ -30,6 +30,7 @@ public class FileListener extends AbstractListener{
 
             try(OutputStream out = new FileOutputStream(dc.getAbsolutePath(fileMsg.getRelativePath()))){
                 out.write(fileContent);
+                dc.setCreationTime(dc.getAbsolutePath(fileMsg.getRelativePath()),fileMsg.getCreationTime());
                 tasks.offer(new ResultMsg(localAddr, msg.getSender(), MessageState.SUCCESS, msg));
 
             }

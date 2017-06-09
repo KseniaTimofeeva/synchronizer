@@ -6,9 +6,7 @@ import ru.ifmo.diploma.synchronizer.DirectoriesComparison;
 import ru.ifmo.diploma.synchronizer.messages.*;
 
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.nio.file.*;
 import java.util.concurrent.BlockingQueue;
 
 /*
@@ -32,19 +30,21 @@ public class CopyFileListener extends AbstractListener {
             Path newPath = Paths.get(p);
             Path newDirPath = Paths.get(p.substring(0, p.lastIndexOf("\\")));
 
-            if (!Files.exists(newDirPath)) {
-                try {
+            try {
+                if (!Files.exists(newDirPath)) {
                     Files.createDirectories(newDirPath);
-                    Files.copy(oldPath, newPath);
-                    dc.setCreationTime(newPath.toString(), copyMsg.getCreationTime());
-                    tasks.offer(new ResultMsg(localAddr, msg.getSender(), MessageState.SUCCESS, msg));
-
-                } catch (IOException e) {
-                    tasks.offer(new ResultMsg(localAddr, msg.getSender(), MessageState.FAILED, msg));
-
-                    e.printStackTrace();
                 }
+
+                Files.copy(oldPath, newPath, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.COPY_ATTRIBUTES);
             }
+            catch (IOException e) {
+                tasks.offer(new ResultMsg(localAddr, msg.getSender(), MessageState.FAILED, msg));
+
+                e.printStackTrace();
+            }
+
+            dc.setCreationTime(newPath.toString(), copyMsg.getCreationTime());
+            tasks.offer(new ResultMsg(msg.getSender(), MessageState.SUCCESS, msg));
         }
     }
 }
