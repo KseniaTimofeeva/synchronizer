@@ -3,9 +3,7 @@ package ru.ifmo.diploma.synchronizer.listeners;
 import ru.ifmo.diploma.synchronizer.messages.*;
 
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.nio.file.*;
 import java.util.concurrent.BlockingQueue;
 
 import ru.ifmo.diploma.synchronizer.DirectoriesComparison;
@@ -24,23 +22,25 @@ public class CopyFileListener extends AbstractListener {
         if (msg.getType() == MessageType.COPY_FILE) {
             CopyFileMsg copyMsg = (CopyFileMsg) msg;
             Path oldPath = Paths.get(dc.getAbsolutePath(copyMsg.getRelativePath()));
-            String p = dc.getAbsolutePath(dc.getAbsolutePath(copyMsg.getNewRelativePath()));
+            String p = dc.getAbsolutePath(copyMsg.getNewRelativePath());
             Path newPath = Paths.get(p);
             Path newDirPath = Paths.get(p.substring(0, p.lastIndexOf("\\")));
 
-            if (!Files.exists(newDirPath)) {
-                try {
+            try {
+                if (!Files.exists(newDirPath)) {
                     Files.createDirectories(newDirPath);
-                    Files.copy(oldPath, newPath);
-                    dc.setCreationTime(newPath.toString(), copyMsg.getCreationTime());
-                    tasks.offer(new ResultMsg(msg.getSender(), MessageState.SUCCESS, msg));
-
-                } catch (IOException e) {
-                    tasks.offer(new ResultMsg(msg.getSender(), MessageState.FAILED, msg));
-
-                    e.printStackTrace();
                 }
+
+                Files.copy(oldPath, newPath, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.COPY_ATTRIBUTES);
             }
+            catch (IOException e) {
+                tasks.offer(new ResultMsg(msg.getSender(), MessageState.FAILED, msg));
+
+                e.printStackTrace();
+            }
+
+            dc.setCreationTime(newPath.toString(), copyMsg.getCreationTime());
+            tasks.offer(new ResultMsg(msg.getSender(), MessageState.SUCCESS, msg));
         }
     }
 }

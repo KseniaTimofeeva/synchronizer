@@ -29,16 +29,17 @@ public class TransferFileListener extends AbstractListener {
             Path newPath = Paths.get(p);
             Path newDirPath=Paths.get(p.substring(0,p.lastIndexOf("\\")));
 
-            if(!Files.exists(newDirPath)) {
-                try {
+            try {
+                if (!Files.exists(newDirPath)) {
                     Files.createDirectories(newDirPath);
-                    Files.move(oldPath, newPath, StandardCopyOption.REPLACE_EXISTING);
-                    tasks.offer(new ResultMsg(localAddr, MessageState.SUCCESS, msg));
-
-                } catch (IOException e) {
-                    tasks.offer(new ResultMsg(localAddr, MessageState.FAILED, msg));
-                    e.printStackTrace();
                 }
+
+                Files.move(oldPath, newPath, StandardCopyOption.REPLACE_EXISTING);
+            }
+            catch (IOException e) {
+                tasks.offer(new ResultMsg(msg.getSender(), MessageState.FAILED, msg));
+
+                e.printStackTrace();
             }
         }
     }

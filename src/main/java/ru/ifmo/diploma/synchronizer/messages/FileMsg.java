@@ -13,17 +13,21 @@ import java.io.ObjectOutput;
 public class FileMsg extends AbstractMsg implements Externalizable{
     private byte[] file;
     private String relativePath;
+    private long creationTime;
 
     public FileMsg(){}
 
-    public FileMsg(String sender, byte[] file, String relativePath){
+    public FileMsg(String sender, byte[] file, String relativePath, long creationTime){
         super(sender);
         type=MessageType.FILE;
         this.file=file;
         this.relativePath=relativePath;
+        this.creationTime=creationTime;
     }
 
     public byte[] getFile(){ return file; }
+
+    public long getCreationTime(){ return creationTime; }
 
     public String getRelativePath(){ return relativePath; }
 
@@ -33,6 +37,7 @@ public class FileMsg extends AbstractMsg implements Externalizable{
         out.writeObject(type);
         out.writeObject(file);
         out.writeObject(relativePath);
+        out.writeLong(creationTime);
     }
 
     @Override
@@ -41,5 +46,6 @@ public class FileMsg extends AbstractMsg implements Externalizable{
         type=(MessageType)in.readObject();
         file=(byte[])in.readObject();
         relativePath=in.readObject().toString();
+        creationTime=in.readLong();
     }
 }
