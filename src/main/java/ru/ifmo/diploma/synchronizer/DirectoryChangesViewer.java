@@ -1,5 +1,8 @@
 package ru.ifmo.diploma.synchronizer;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import java.io.IOException;
 import java.nio.file.FileSystems;
 import java.nio.file.FileVisitResult;
@@ -22,14 +25,17 @@ import static java.nio.file.StandardWatchEventKinds.*;
  * Created by Юлия on 18.05.2017.
  */
 public class DirectoryChangesViewer implements Runnable {
+    private static final Logger LOG = LogManager.getLogger(DirectoryChangesViewer.class);
 
     private final WatchService watcher;
     private final Map<WatchKey, Path> keys;
+    private String localAddr;
 
 
-    DirectoryChangesViewer(Path dir) throws IOException {
+    DirectoryChangesViewer(Path dir, String localAddr) throws IOException {
         this.watcher = FileSystems.getDefault().newWatchService();
         this.keys = new HashMap<WatchKey, Path>();
+        this.localAddr = localAddr;
 
         walkAndRegisterDirectories(dir);
     }
@@ -51,6 +57,8 @@ public class DirectoryChangesViewer implements Runnable {
 
     @Override
     public void run() {
+        LOG.debug("Directory changes viewer started on {}", localAddr);
+
         while (true) {
 
             WatchKey key;
@@ -74,12 +82,15 @@ public class DirectoryChangesViewer implements Runnable {
                     } else {
                         switch (kind) {
                             case "ENTRY_CREATE":
+                                System.out.println("ENTRY_CREATE");
                                 //send new file to all hosts
                                 break;
                             case "ENTRY_MODIFY":
+                                System.out.println("ENTRY_MODIFY");
                                 //send delta to all hosts
                                 break;
                             case "ENTRY_DELETE":
+                                System.out.println("ENTRY_DELETE");
                                 //notify all hosts to delete this file
                                 break;
                         }

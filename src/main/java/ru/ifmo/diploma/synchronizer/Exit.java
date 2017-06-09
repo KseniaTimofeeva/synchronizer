@@ -20,7 +20,6 @@ public class Exit extends Thread {
     private List<Thread> threadList;
     private Map<String, CurrentConnections> connections;
     private String startPath;
-    private String logRelativePath;
     private DirectoriesComparison dc;
     private String localAddr;
 
@@ -29,7 +28,6 @@ public class Exit extends Thread {
         this.threadList = synchronizer.getThreadList();
         this.connections = synchronizer.getConnections();
         this.startPath = synchronizer.getStartPath();
-        this.logRelativePath = synchronizer.getLogRelativePath();
         this.dc = synchronizer.getDc();
         this.localAddr = synchronizer.getLocalAddr();
     }
@@ -44,7 +42,7 @@ public class Exit extends Thread {
             if (string.equals("q")) {
                 LOG.trace("Start ending host " + localAddr);
 
-                dc.saveDirectoryState(startPath + "\\" + logRelativePath);
+                dc.saveDirectoryState(dc.getAbsolutePath("log.bin"));
 
                 if (synchronizer.getServerSocket() != null) {
                     try {

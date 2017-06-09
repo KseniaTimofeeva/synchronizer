@@ -28,7 +28,7 @@ public class CopyFileListener extends AbstractListener {
 
             CopyFileMsg copyMsg = (CopyFileMsg) msg;
             Path oldPath = Paths.get(dc.getAbsolutePath(copyMsg.getRelativePath()));
-            String p = dc.getAbsolutePath(dc.getAbsolutePath(copyMsg.getNewRelativePath()));
+            String p = dc.getAbsolutePath(copyMsg.getNewRelativePath());
             Path newPath = Paths.get(p);
             Path newDirPath = Paths.get(p.substring(0, p.lastIndexOf("\\")));
 

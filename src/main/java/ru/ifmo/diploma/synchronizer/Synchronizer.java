@@ -19,9 +19,11 @@ import ru.ifmo.diploma.synchronizer.listeners.TransferFileListener;
 import ru.ifmo.diploma.synchronizer.messages.AbstractMsg;
 import ru.ifmo.diploma.synchronizer.protocol.handshake.Credentials;
 
+import java.io.IOException;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.UnknownHostException;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -49,7 +51,6 @@ public class Synchronizer extends Thread {
     private DirectoriesComparison dc;
     private List<Thread> threadList = new ArrayList<>();
     private Discovery discovery;
-    private String logRelativePath;
 
     public Synchronizer(String localIP, int localPort, Map<String, Credentials> authorizationTable, String startPath) {
         localAddr = localIP + ":" + localPort;
@@ -90,10 +91,6 @@ public class Synchronizer extends Thread {
         return writerTasks;
     }
 
-    public String getLogRelativePath() {
-        return logRelativePath;
-    }
-
     public DirectoriesComparison getDc() {
         return dc;
     }
@@ -122,18 +119,20 @@ public class Synchronizer extends Thread {
     public void run() {
         threadList.add(this);
 
-        logRelativePath = "log" + localPort + ".bin";
-
-        dc = new DirectoriesComparison(startPath, localAddr, writerTasks, logRelativePath);
+        dc = new DirectoriesComparison(startPath, localAddr, writerTasks);
 
         new Exit(this).start();
 //        Runtime.getRuntime().addShutdownHook(new Exit(threadList, connections, startPath, logRelativePath, dc, localAddr));
 
         //поток для отслеживания изменения директории в режиме реального времени
-//        Thread viewer = new Thread(new DirectoryChangesViewer(startPath));
-//        viewer.start();
-//        threadList.add(viewer);
-
+        Thread viewer = null;
+        try {
+            viewer = new Thread(new DirectoryChangesViewer(Paths.get(startPath), localAddr));
+            viewer.start();
+            threadList.add(viewer);
+        } catch (IOException e) {
+            //@TODO
+        }
 
         addListeners();
 

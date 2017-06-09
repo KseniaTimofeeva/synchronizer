@@ -21,7 +21,7 @@ public class ResultListener extends AbstractListener {
     @Override
     public void handle(AbstractMsg msg) {
         if(msg.getType()== MessageType.RESULT){
-            LOG.debug("{}: Listener: RESULT {} from {}", localAddr, ((ResultMsg) msg).getState(), msg.getSender());
+            LOG.debug("{}: Listener: RESULT ({}) {} from {}", localAddr,((ResultMsg) msg).getRequestMsg().getType(), ((ResultMsg) msg).getState(), msg.getSender());
 
             ResultMsg resMsg=(ResultMsg)msg;
             if(resMsg.getState()== MessageState.FAILED){

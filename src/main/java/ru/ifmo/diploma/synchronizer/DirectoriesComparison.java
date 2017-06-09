@@ -19,38 +19,38 @@ import java.util.concurrent.BlockingQueue;
  * Created by Юлия on 19.05.2017.
  */
 public class DirectoriesComparison {
-    private List<FileInfo> filesInfo = new ArrayList<>();
+    private List<FileInfo> filesInfo;
     private List<FileInfo> prevDirState;
     private final String startPath;
 
     private final String localAddr;
     private BlockingQueue<AbstractMsg> tasks;
-    private String logRelativePath;
 
     private static final Logger LOG = LogManager.getLogger(DirectoriesComparison.class);
 
 
-    public DirectoriesComparison(String startPath, String localAddr, BlockingQueue<AbstractMsg> tasks, String logRelativePath) {
+    public DirectoriesComparison(String startPath, String localAddr, BlockingQueue<AbstractMsg> tasks) {
 
         this.startPath = startPath;
         this.localAddr = localAddr;
         this.tasks = tasks;
-        this.logRelativePath = logRelativePath;
     }
 
 
     //записывает информацию обо всех файлах в список
     private void createListFiles(String path) throws IOException, NoSuchAlgorithmException {
+        LOG.debug("Creating file list of directory {} on {} ", path, localAddr);
+
         File dir = new File(path);
         File[] listFiles = dir.listFiles();
-
-        if (listFiles != null) {
+        filesInfo = new ArrayList<>();
+        if (listFiles.length!=0) {
             List<File> files = Arrays.asList(listFiles);
 
             for (File f : files) {
                 if (f.isDirectory())
                     createListFiles(f.getAbsolutePath());
-                else if (!f.getName().equals(logRelativePath)) {
+                else if (!f.getName().equals("log.bin")) {
                     BasicFileAttributes attrs = Files.readAttributes(f.toPath(), BasicFileAttributes.class);
                     String relativePath = f.getPath().substring(startPath.length() + 1);
                     filesInfo.add(new FileInfo(relativePath, attrs.creationTime().toMillis(), f.lastModified(), f.length(), getCheckSum(f.toPath())));
@@ -63,7 +63,7 @@ public class DirectoriesComparison {
     }
 
     public List<FileInfo> getListFiles() throws IOException, NoSuchAlgorithmException {
-        if (filesInfo.isEmpty())
+        if (filesInfo==null)
             createListFiles(startPath);
 
         return filesInfo;
@@ -115,7 +115,7 @@ public class DirectoriesComparison {
 
 
     private boolean isFirstLaunch(List<FileInfo> l1, List<FileInfo> l2) {
-        if (!Files.exists(Paths.get(getAbsolutePath(logRelativePath)))) {
+        if (!Files.exists(Paths.get(getAbsolutePath("log.bin")))) {
             LOG.debug("First launch on " + localAddr);
 
             for (FileInfo fi1 : l1) {
@@ -134,7 +134,7 @@ public class DirectoriesComparison {
 
     private void checkForLocalChanges(String addr) {
 
-        prevDirState = getDirectoryState(getAbsolutePath(logRelativePath));
+        prevDirState = getDirectoryState(getAbsolutePath("log.bin"));
 
         for (FileInfo fi1 : prevDirState) {
             boolean isOriginal = false, isCopied = false;
