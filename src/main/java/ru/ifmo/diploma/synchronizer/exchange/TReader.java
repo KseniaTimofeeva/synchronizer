@@ -49,7 +49,7 @@ public class TReader {
 
         try {
             //даем своему writer'у команду отправить список файлов удаленному хосту
-            LOG.trace(localAddr + ": SEND_LIST_FILES_COMMAND to " + addr);
+            LOG.debug(localAddr + ": SEND_LIST_FILES_COMMAND to " + addr);
             readerTasks.offer(new SendListFilesCommand(localAddr, addr));
 
             //чтение сообщений от конкретного удаленного хоста

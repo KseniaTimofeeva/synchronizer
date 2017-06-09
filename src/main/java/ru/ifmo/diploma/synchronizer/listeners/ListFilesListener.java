@@ -33,7 +33,7 @@ public class ListFilesListener extends AbstractListener {
             if (((ListFilesMsg) msg).getListFiles() != null) {
                 sentListFiles = ((ListFilesMsg) msg).getListFiles();
                 tasks.offer(new ResultMsg(localAddr, msg.getSender(), MessageState.SUCCESS, msg));
-                dc.compareDirectories(msg.getSender(), sentListFiles, dc.getListFiles());
+                dc.compareDirectories(msg.getSender(), dc.getListFiles(),sentListFiles);
             } else {
                 tasks.offer(new ResultMsg(localAddr, msg.getSender(), MessageState.FAILED, msg));
             }

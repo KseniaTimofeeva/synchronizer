@@ -27,11 +27,12 @@ public class FileMsg extends AbstractMsg implements Externalizable{
     }
 
     //unicast
-    public FileMsg(String sender, String recipient, byte[] file, String relativePath){
+    public FileMsg(String sender, String recipient, byte[] file, String relativePath, long creationTime){
         super(sender, recipient);
         type=MessageType.FILE;
         this.file=file;
         this.relativePath=relativePath;
+        this.creationTime=creationTime;
     }
 
     public byte[] getFile(){ return file; }

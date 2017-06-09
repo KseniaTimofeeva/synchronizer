@@ -44,7 +44,7 @@ public class CopyFileListener extends AbstractListener {
             }
 
             dc.setCreationTime(newPath.toString(), copyMsg.getCreationTime());
-            tasks.offer(new ResultMsg(msg.getSender(), MessageState.SUCCESS, msg));
+            tasks.offer(new ResultMsg(localAddr, msg.getSender(), MessageState.SUCCESS, msg));
         }
     }
 }

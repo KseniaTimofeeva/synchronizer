@@ -43,9 +43,10 @@ public class SendFileRequestListener extends AbstractListener {
                     sbPath.append(path.substring(path.indexOf('.')));
                     path = sbPath.toString();
                 }
-                tasks.offer(new FileMsg(msg.getSender(), bout.toByteArray(), path, fi.getCreationDate()));
+                tasks.offer(new FileMsg(localAddr, msg.getSender(), bout.toByteArray(), path, fi.getCreationDate()));
 
             } catch (IOException e) {
+                e.printStackTrace();
                 tasks.offer(new ResultMsg(localAddr, msg.getSender(), MessageState.FAILED, msg));
                 return;
             }

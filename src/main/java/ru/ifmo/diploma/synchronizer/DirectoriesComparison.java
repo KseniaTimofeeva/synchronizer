@@ -133,7 +133,7 @@ public class DirectoriesComparison {
     }
 
     private void checkForLocalChanges(String addr) {
-
+        LOG.debug("{} Checking for local changes", localAddr);
         prevDirState = getDirectoryState(getAbsolutePath("log.bin"));
 
         for (FileInfo fi1 : prevDirState) {
@@ -235,7 +235,7 @@ public class DirectoriesComparison {
                 for (FileInfo prevFI : prevDirState) {
                     if (sentFileInfo.getCheckSum().equals(prevFI.getCheckSum())) {
                         isFound = true;
-                        LOG.debug("{}: File {} was locally deleted", localAddr, sentFileInfo.getRelativePath());
+                        LOG.debug("{}: 1 File {} was  deleted", localAddr, sentFileInfo.getRelativePath());
 
                         AbstractMsg msg = new DeleteFileMsg(localAddr, addr, sentFileInfo.getRelativePath());
                         tasks.offer(msg);
