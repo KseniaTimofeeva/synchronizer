@@ -22,9 +22,10 @@ public class CopyFileListener extends AbstractListener {
     @Override
     public void handle(AbstractMsg msg) {
         if (msg.getType() == MessageType.COPY_FILE) {
-            LOG.debug("{}: Listener: COPY_FILE from {}", localAddr, msg.getSender());
 
             CopyFileMsg copyMsg = (CopyFileMsg) msg;
+            LOG.debug("{}: Listener: COPY_FILE {} from {}", localAddr, copyMsg.getRelativePath(), msg.getSender());
+
             Path oldPath = Paths.get(dc.getAbsolutePath(copyMsg.getRelativePath()));
             String p = dc.getAbsolutePath(copyMsg.getNewRelativePath());
             Path newPath = Paths.get(p);

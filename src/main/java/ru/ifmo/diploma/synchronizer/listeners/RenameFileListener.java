@@ -20,10 +20,12 @@ public class RenameFileListener extends AbstractListener {
 
     @Override
     public void handle(AbstractMsg msg) {
-        if(msg.getType()== MessageType.RENAME_FILE) {
-            LOG.debug("{}: Listener: RENAME_FILE from {}", localAddr, msg.getSender());
+        if (msg.getType() == MessageType.RENAME_FILE) {
 
-            RenameFileMsg renameMsg=(RenameFileMsg)msg;
+            RenameFileMsg renameMsg = (RenameFileMsg) msg;
+            LOG.debug("{}: Listener: RENAME_FILE {} from {}", localAddr, renameMsg.getOldRelativePath(), msg.getSender());
+
+
             File oldFile = new File(dc.getAbsolutePath(renameMsg.getOldRelativePath()));
             File newFile = new File(dc.getAbsolutePath(renameMsg.getNewRelativePath()));
             if (!oldFile.renameTo(newFile))

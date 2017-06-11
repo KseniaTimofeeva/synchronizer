@@ -121,8 +121,8 @@ public class Synchronizer extends Thread {
 
         dc = new DirectoriesComparison(startPath, localAddr, writerTasks);
 
-        new Exit(this).start();
-//        Runtime.getRuntime().addShutdownHook(new Exit(threadList, connections, startPath, logRelativePath, dc, localAddr));
+//        new Exit(this).start();
+        Runtime.getRuntime().addShutdownHook(new Exit(this));
 
         //поток для отслеживания изменения директории в режиме реального времени
         Thread viewer = null;

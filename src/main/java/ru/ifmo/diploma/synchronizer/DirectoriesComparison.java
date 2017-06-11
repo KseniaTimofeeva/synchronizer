@@ -44,7 +44,7 @@ public class DirectoriesComparison {
         File dir = new File(path);
         File[] listFiles = dir.listFiles();
         filesInfo = new ArrayList<>();
-        if (listFiles.length!=0) {
+        if (listFiles.length != 0) {
             List<File> files = Arrays.asList(listFiles);
 
             for (File f : files) {
@@ -63,7 +63,7 @@ public class DirectoriesComparison {
     }
 
     public List<FileInfo> getListFiles() throws IOException, NoSuchAlgorithmException {
-        if (filesInfo==null)
+        if (filesInfo == null)
             createListFiles(startPath);
 
         return filesInfo;
@@ -136,65 +136,67 @@ public class DirectoriesComparison {
         LOG.debug("{} Checking for local changes", localAddr);
         prevDirState = getDirectoryState(getAbsolutePath("log.bin"));
 
-        for (FileInfo fi1 : prevDirState) {
-            boolean isOriginal = false, isCopied = false;
-            boolean isMatch = false;
+        String deletedFilePath="";
 
-            for (FileInfo fi2 : filesInfo) {
-                if (fi1.equals(fi2)) {
+        for (FileInfo fi1 : filesInfo) {
+            boolean isOriginal = false, isRenameOrMove = false, isCopied=false;
+            AbstractMsg msg = null;
+            String logMsg = "";
+
+            for (FileInfo fi2 : prevDirState) {
+
+                if (fi1.getCreationDate() == fi2.getCreationDate() && fi1.getRelativePath().equals(fi2.getRelativePath())) {
                     isOriginal = true;
-                    isMatch = true;
                     continue;
                 }
 
                 if (fi1.getCheckSum().equals(fi2.getCheckSum())) {
                     if (fi1.getCreationDate() == fi2.getCreationDate()) {
-                        isMatch = true;
-
+                        isRenameOrMove = true;
                         int finishIndex1 = fi1.getRelativePath().lastIndexOf("\\") > 0 ? fi1.getRelativePath().lastIndexOf("\\") : 0;
                         int finishIndex2 = fi2.getRelativePath().lastIndexOf("\\") > 0 ? fi2.getRelativePath().lastIndexOf("\\") : 0;
                         if (fi1.getRelativePath().substring(0, finishIndex1).equals(fi2.getRelativePath().substring(0, finishIndex2))) {
 
-                            LOG.debug("{}: File {} was locally renamed to {}", localAddr, fi1.getRelativePath(), fi2.getRelativePath());
-
-                            AbstractMsg msg = new RenameFileMsg(localAddr, addr, fi1.getRelativePath(), fi2.getRelativePath());
-                            tasks.offer(msg);
+                            logMsg = localAddr + ": File {" + fi2.getRelativePath() + "} was locally renamed to " + fi1.getRelativePath();
+                            msg = new RenameFileMsg(localAddr, addr, fi2.getRelativePath(), fi1.getRelativePath());
 
 
                         } else {
 
-                            LOG.debug("{}: File {} was locally moved to {}", localAddr, fi1.getRelativePath(), fi2.getRelativePath());
-
-                            AbstractMsg msg = new TransferFileMsg(localAddr, addr, fi1.getRelativePath(), fi2.getRelativePath());
-                            tasks.offer(msg);
+                            logMsg = localAddr + ": File {" + fi2.getRelativePath() + "} was locally moved to " + fi1.getRelativePath();
+                            msg = new TransferFileMsg(localAddr, addr, fi2.getRelativePath(), fi1.getRelativePath());
 
                         }
 
-                    } else {
+                    } else if (!isRenameOrMove) {
 
-                        isCopied = true;
-                        isMatch = true;
-                        LOG.debug("{}: File {} was locally copied to {}", localAddr, fi1.getRelativePath(), fi2.getRelativePath());
+                        isCopied=true;
 
-                        AbstractMsg msg = new CopyFileMsg(localAddr, addr, fi1.getRelativePath(), fi2.getRelativePath(), fi2.getCreationDate());
-                        tasks.offer(msg);
+                        logMsg = localAddr + ": File {" + fi2.getRelativePath() + "} was locally copied to " + fi1.getRelativePath();
+                        msg = new CopyFileMsg(localAddr, addr, fi2.getRelativePath(), fi1.getRelativePath(), fi1.getCreationDate());
+                        deletedFilePath=fi2.getRelativePath();
 
                     }
                 }
             }
-            if (!isOriginal && isCopied || !isMatch) {
-                LOG.debug("{}: File {} was locally deleted", localAddr, fi1.getRelativePath());
-
-                AbstractMsg msg = new DeleteFileMsg(localAddr, addr, fi1.getRelativePath());
+            if (!isOriginal && (isCopied||isRenameOrMove)) {
+                LOG.debug(logMsg);
                 tasks.offer(msg);
             }
+
+            if (!isOriginal && isCopied) {
+                LOG.debug("{}: File {} was locally deleted after being copied", localAddr, deletedFilePath);
+
+                msg = new DeleteFileMsg(localAddr, addr, deletedFilePath);
+                tasks.offer(msg);
+            }
+
         }
 
     }
 
     public void compareDirectories(String addr, List<FileInfo> localListFiles, List<FileInfo> sentListFiles) {
         LOG.debug("{}: Comparing directories with {} started", localAddr, addr);
-
         boolean isFound;
 
         if (!isFirstLaunch(localListFiles, sentListFiles))
@@ -204,7 +206,6 @@ public class DirectoriesComparison {
             isFound = false;
 
             for (FileInfo localFileInfo : localListFiles) {
-
                 if (sentFileInfo.getCheckSum().equals(localFileInfo.getCheckSum())) {
                     LOG.debug("{}: Files: {}, {} have same content", localAddr, localFileInfo.getRelativePath(), sentFileInfo.getRelativePath());
                     isFound = true;
@@ -217,14 +218,16 @@ public class DirectoriesComparison {
                         tasks.offer(msg);
 
                         isFound = true;
-                        break;
                     }
+                    break;
+
                 }
                 if (sentFileInfo.getRelativePath().equals(localFileInfo.getRelativePath())) {
                     LOG.debug("{}: Files have same relative paths ({}), but different content, " +
                             "Request file and save it with different name", localAddr, sentFileInfo.getRelativePath());
                     AbstractMsg msg = new SendFileRequestMsg(localAddr, addr, sentFileInfo, true);
                     tasks.offer(msg);
+                    isFound = true;
 
                 }
 
@@ -298,3 +301,4 @@ public class DirectoriesComparison {
     }
 
 }
+

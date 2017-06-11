@@ -24,14 +24,15 @@ public class TransferFileListener extends AbstractListener {
 
     @Override
     public void handle(AbstractMsg msg) {
-        if(msg.getType()== MessageType.TRANSFER_FILE){
-            LOG.debug("{}: Listener: send TRANSFER_FILE to {}", localAddr, msg.getRecipient());
+        if (msg.getType() == MessageType.TRANSFER_FILE) {
 
-            TransferFileMsg transMsg=(TransferFileMsg)msg;
+            TransferFileMsg transMsg = (TransferFileMsg) msg;
+            LOG.debug("{}: Listener: send TRANSFER_FILE {} to {}", localAddr, transMsg.getOldRelativePath(), msg.getRecipient());
+
             Path oldPath = Paths.get(dc.getAbsolutePath(transMsg.getOldRelativePath()));
-            String p=dc.getAbsolutePath(transMsg.getNewRelativePath());
+            String p = dc.getAbsolutePath(transMsg.getNewRelativePath());
             Path newPath = Paths.get(p);
-            Path newDirPath=Paths.get(p.substring(0,p.lastIndexOf("\\")));
+            Path newDirPath = Paths.get(p.substring(0, p.lastIndexOf("\\")));
 
             try {
                 if (!Files.exists(newDirPath)) {
@@ -39,8 +40,7 @@ public class TransferFileListener extends AbstractListener {
                 }
 
                 Files.move(oldPath, newPath, StandardCopyOption.REPLACE_EXISTING);
-            }
-            catch (IOException e) {
+            } catch (IOException e) {
                 tasks.offer(new ResultMsg(msg.getSender(), msg.getSender(), MessageState.FAILED, msg));
 
                 e.printStackTrace();

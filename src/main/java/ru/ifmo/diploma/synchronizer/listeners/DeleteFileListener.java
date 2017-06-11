@@ -22,10 +22,11 @@ public class DeleteFileListener extends AbstractListener {
 
     @Override
     public void handle(AbstractMsg msg) {
-        if(msg.getType()== MessageType.DELETE_FILE) {
-            LOG.debug("{}: Listener: DELETE_FILE from {}", localAddr, msg.getSender());
+        if (msg.getType() == MessageType.DELETE_FILE) {
 
-            DeleteFileMsg delMsg=(DeleteFileMsg)msg;
+            DeleteFileMsg delMsg = (DeleteFileMsg) msg;
+            LOG.debug("{}: Listener: DELETE_FILE {} from {}", localAddr, delMsg.getRelativePath(), msg.getSender());
+
             try {
                 Files.deleteIfExists(Paths.get(dc.getAbsolutePath(delMsg.getRelativePath())));
                 tasks.offer(new ResultMsg(localAddr, msg.getSender(), MessageState.SUCCESS, msg));

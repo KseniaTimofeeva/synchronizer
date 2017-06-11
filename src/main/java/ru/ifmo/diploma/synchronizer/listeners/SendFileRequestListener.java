@@ -22,10 +22,10 @@ public class SendFileRequestListener extends AbstractListener {
     @Override
     public void handle(AbstractMsg msg) {
         if (msg.getType() == MessageType.SEND_FILE_REQUEST) {
-            LOG.debug("{}: Listener: SEND_FILE_REQUEST from {}", localAddr, msg.getSender());
-
             SendFileRequestMsg fileRequestMsg = (SendFileRequestMsg) msg;
             FileInfo fi = fileRequestMsg.getFileInfo();
+            LOG.debug("{}: Listener: SEND_FILE_REQUEST from {}, file: {}", localAddr, msg.getSender(),fi);
+
             File f = new File(dc.getAbsolutePath(fi.getRelativePath()));
             try (InputStream in = new FileInputStream(f);
                  ByteArrayOutputStream bout = new ByteArrayOutputStream()) {
@@ -39,7 +39,7 @@ public class SendFileRequestListener extends AbstractListener {
                 if (fileRequestMsg.getChangeName()) {
                     StringBuilder sbPath = new StringBuilder();
                     sbPath.append(path.substring(0, path.length() - 4));
-                    sbPath.append(msg.getSender());
+                    sbPath.append(localAddr.replace(':','_'));
                     sbPath.append(path.substring(path.indexOf('.')));
                     path = sbPath.toString();
                 }
