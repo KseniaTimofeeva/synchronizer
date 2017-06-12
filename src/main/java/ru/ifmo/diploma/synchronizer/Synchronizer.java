@@ -19,6 +19,7 @@ import ru.ifmo.diploma.synchronizer.listeners.TransferFileListener;
 import ru.ifmo.diploma.synchronizer.messages.AbstractMsg;
 import ru.ifmo.diploma.synchronizer.protocol.handshake.Credentials;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.ServerSocket;
@@ -51,6 +52,7 @@ public class Synchronizer extends Thread {
     private DirectoriesComparison dc;
     private List<Thread> threadList = new ArrayList<>();
     private Discovery discovery;
+    private BlockingQueue<AbstractMsg> offlineChanges = new LinkedBlockingQueue<>();
 
     public Synchronizer(String localIP, int localPort, Map<String, Credentials> authorizationTable, String startPath) {
         localAddr = localIP + ":" + localPort;
@@ -121,8 +123,8 @@ public class Synchronizer extends Thread {
 
         dc = new DirectoriesComparison(startPath, localAddr, writerTasks);
 
-//        new Exit(this).start();
-        Runtime.getRuntime().addShutdownHook(new Exit(this));
+        new Exit(this).start();
+//        Runtime.getRuntime().addShutdownHook(new Exit(this));
 
         //поток для отслеживания изменения директории в режиме реального времени
         Thread viewer = null;
@@ -149,6 +151,15 @@ public class Synchronizer extends Thread {
     }
 
     public static void main(String[] args) {
+
+        if (args == null || args.length == 0) {
+            System.out.println("Please, specify the path of directory need to be synchronized");
+            System.out.println("Use java -jar synchronizer.jar startpath");
+            return;
+        }
+
+        String startPath = args[0];
+
         String localIP = null;
         try {
             localIP = InetAddress.getLocalHost().getHostAddress();
@@ -175,13 +186,13 @@ public class Synchronizer extends Thread {
         authorizationTable4.put(localIP + ":60603", new Credentials("", "login60603", "password60603"));
 
 
-        new Synchronizer(localIP, 60601, authorizationTable1, "C:\\synchronizer_work\\synchronized_1").start();
+        new Synchronizer(localIP, 60601, authorizationTable1, startPath + File.separator + "synchronized_1").start();
         threadSleep(3000);
-        new Synchronizer(localIP, 60602, authorizationTable2, "C:\\synchronizer_work\\synchronized_2").start();
+        new Synchronizer(localIP, 60602, authorizationTable2, startPath + File.separator + "synchronized_2").start();
         threadSleep(3000);
-        new Synchronizer(localIP, 60603, authorizationTable3, "C:\\synchronizer_work\\synchronized_3").start();
+        new Synchronizer(localIP, 60603, authorizationTable3, startPath + File.separator + "synchronized_3").start();
         threadSleep(3000);
-        new Synchronizer(localIP, 60604, authorizationTable4, "C:\\synchronizer_work\\synchronized_4").start();
+        new Synchronizer(localIP, 60604, authorizationTable4, startPath + File.separator + "synchronized_4").start();
 
     }
 

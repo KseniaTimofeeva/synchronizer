@@ -41,14 +41,6 @@ public class CurrentConnections {
         return thread;
     }
 
-    //    public TWriter getWriter() {
-//        return writer;
-//    }
-
-//    public void setWriter(TWriter writer) {
-//        this.writer = writer;
-//    }
-
     @Override
     public String toString() {
         return "CurrentConnections{" +

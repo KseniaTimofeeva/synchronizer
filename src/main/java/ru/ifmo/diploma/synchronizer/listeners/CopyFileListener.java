@@ -5,6 +5,7 @@ import org.apache.logging.log4j.Logger;
 import ru.ifmo.diploma.synchronizer.DirectoriesComparison;
 import ru.ifmo.diploma.synchronizer.messages.*;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.*;
 import java.util.concurrent.BlockingQueue;
@@ -29,7 +30,7 @@ public class CopyFileListener extends AbstractListener {
             Path oldPath = Paths.get(dc.getAbsolutePath(copyMsg.getRelativePath()));
             String p = dc.getAbsolutePath(copyMsg.getNewRelativePath());
             Path newPath = Paths.get(p);
-            Path newDirPath = Paths.get(p.substring(0, p.lastIndexOf("\\")));
+            Path newDirPath = Paths.get(p.substring(0, p.lastIndexOf(File.separator)));
 
             try {
                 if (!Files.exists(newDirPath)) {

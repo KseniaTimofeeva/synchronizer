@@ -1,7 +1,5 @@
 package ru.ifmo.diploma.synchronizer.messages;
 
-import sun.plugin2.message.Message;
-
 import java.io.Externalizable;
 import java.io.IOException;
 import java.io.ObjectInput;

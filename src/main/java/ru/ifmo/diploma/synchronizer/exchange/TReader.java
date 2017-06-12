@@ -67,9 +67,13 @@ public class TReader {
                 LOG.trace("{}: reader: {} from {} added to queue", localAddr, ((AbstractMsg) obj).getType(), addr);
             }
         } catch (IOException | ClassNotFoundException e) {
-            LOG.error(localAddr + ": Reader error. Read object error");
+            if (!Utils.exit) {
+                LOG.error(localAddr + ": Reader error. Read object error");
+            }
         } finally {
-            LOG.error(localAddr + ": Reader error. " + addr + " stopped");
+            if (!Utils.exit) {
+                LOG.error(localAddr + ": Reader error. " + addr + " stopped");
+            }
             connections.remove(addr);
             Utils.closeSocket(socket);
         }

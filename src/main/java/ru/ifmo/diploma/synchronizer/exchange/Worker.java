@@ -55,12 +55,14 @@ public class Worker extends Thread {
                 notifyListeners(msg);
             }
         } catch (InterruptedException e) {
-            LOG.debug(localAddr + ": Worker interrupted ");
+            LOG.trace(localAddr + ": Worker interrupted ");
             interrupt();
         } catch (NoSuchAlgorithmException | IOException e) {
             LOG.debug(localAddr + ": Listeners error. Can't get file list");
         } finally {
-            LOG.error(localAddr + ": Worker error");
+            if (!Utils.exit) {
+                LOG.error(localAddr + ": Worker error");
+            }
             for (CurrentConnections con : connections.values()) {
                 Utils.closeSocket(con.getSocket());
             }

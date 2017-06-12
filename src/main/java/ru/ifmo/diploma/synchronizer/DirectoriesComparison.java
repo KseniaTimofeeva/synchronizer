@@ -82,7 +82,7 @@ public class DirectoriesComparison {
     }
 
     public String getAbsolutePath(String relativePath) {
-        return startPath + "\\" + relativePath;
+        return startPath + File.separator + relativePath;
     }
 
     public void setCreationTime(String fileName, long creationTime) {
@@ -153,8 +153,8 @@ public class DirectoriesComparison {
                 if (fi1.getCheckSum().equals(fi2.getCheckSum())) {
                     if (fi1.getCreationDate() == fi2.getCreationDate()) {
                         isRenameOrMove = true;
-                        int finishIndex1 = fi1.getRelativePath().lastIndexOf("\\") > 0 ? fi1.getRelativePath().lastIndexOf("\\") : 0;
-                        int finishIndex2 = fi2.getRelativePath().lastIndexOf("\\") > 0 ? fi2.getRelativePath().lastIndexOf("\\") : 0;
+                        int finishIndex1 = fi1.getRelativePath().lastIndexOf(File.separator) > 0 ? fi1.getRelativePath().lastIndexOf(File.separator) : 0;
+                        int finishIndex2 = fi2.getRelativePath().lastIndexOf(File.separator) > 0 ? fi2.getRelativePath().lastIndexOf(File.separator) : 0;
                         if (fi1.getRelativePath().substring(0, finishIndex1).equals(fi2.getRelativePath().substring(0, finishIndex2))) {
 
                             logMsg = localAddr + ": File {" + fi2.getRelativePath() + "} was locally renamed to " + fi1.getRelativePath();

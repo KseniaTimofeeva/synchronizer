@@ -59,7 +59,7 @@ public class DirectoryChangesViewer implements Runnable {
     public void run() {
         LOG.debug("Directory changes viewer started on {}", localAddr);
 
-        while (true) {
+        while (!Thread.currentThread().isInterrupted()) {
 
             WatchKey key;
             try {

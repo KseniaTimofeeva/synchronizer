@@ -50,16 +50,6 @@ public class Discovery {
         connections = synchronizer.getConnections();
     }
 
-//    public void broadcast(AbstractMsg msg) {
-//        for (CurrentConnections con : connections.values()) {
-//            TWriter writer = con.getWriter();
-//
-//            if (writer != null)
-//                writer.send(msg);
-//        }
-//    }
-
-
     public ServerSocket getServerSocket() {
         return serverSocket;
     }
@@ -135,7 +125,9 @@ public class Discovery {
                 new InputConnectionThread(socket).start();
             }
         } catch (IOException e) {
-            LOG.error(localAddr + ": Server error");
+            if (!Utils.exit) {
+                LOG.error(localAddr + ": Server error");
+            }
         }
     }
 
@@ -238,7 +230,9 @@ public class Discovery {
                     LOG.error(localAddr + ": Remote host is not authorized. Socket closed");
                 }
                 if (addr != null) {
-                    LOG.error(localAddr + ": " + addr + " stopped");
+                    if (!Utils.exit) {
+                        LOG.error(localAddr + ": " + addr + " stopped");
+                    }
                     connections.remove(addr);
                 }
                 Utils.closeSocket(socket);
@@ -311,7 +305,9 @@ public class Discovery {
             } catch (IOException e) {
                 LOG.error(localAddr + ": Connection error with host " + addr);
             } finally {
-                LOG.error(localAddr + ": " + addr + " stopped");
+                if (!Utils.exit) {
+                    LOG.error(localAddr + ": " + addr + " stopped");
+                }
                 connections.remove(addr);
                 Utils.closeSocket(socket);
             }

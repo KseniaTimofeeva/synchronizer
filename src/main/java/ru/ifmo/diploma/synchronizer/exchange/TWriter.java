@@ -76,10 +76,12 @@ public class TWriter extends Thread {
                 }
             }
         } catch (InterruptedException e) {
-            LOG.debug(localAddr + ": Writer interrupted ");
+            LOG.trace(localAddr + ": Writer interrupted ");
             interrupt();
         } finally {
-            LOG.error(localAddr + ": Writer error");
+            if (!Utils.exit) {
+                LOG.error(localAddr + ": Writer error");
+            }
             for (CurrentConnections con : connections.values()) {
                 Utils.closeSocket(con.getSocket());
             }

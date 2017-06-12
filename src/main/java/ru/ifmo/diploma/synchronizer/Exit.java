@@ -34,12 +34,15 @@ public class Exit extends Thread {
 
     @Override
     public void run() {
-//        Scanner scanner = new Scanner(System.in);
-//        while (true) {
-//
-//            String string = scanner.nextLine();
-//
-//            if (string.equals("q")) {
+
+        Scanner scanner = new Scanner(System.in);
+        while (true) {
+
+            String string = scanner.nextLine();
+
+            if (string.equals("q")) {
+                Utils.exit = true;
+
                 LOG.trace("Start ending host " + localAddr);
 
                 dc.saveDirectoryState(dc.getAbsolutePath("log.bin"));
@@ -69,8 +72,8 @@ public class Exit extends Thread {
                 }
 
                 LOG.debug("END HOST " + localAddr);
-//                break;
-//            }
-//        }
+                break;
+            }
+        }
     }
 }

@@ -5,6 +5,7 @@ import org.apache.logging.log4j.Logger;
 import ru.ifmo.diploma.synchronizer.DirectoriesComparison;
 import ru.ifmo.diploma.synchronizer.messages.*;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -27,12 +28,12 @@ public class TransferFileListener extends AbstractListener {
         if (msg.getType() == MessageType.TRANSFER_FILE) {
 
             TransferFileMsg transMsg = (TransferFileMsg) msg;
-            LOG.debug("{}: Listener: send TRANSFER_FILE {} to {}", localAddr, transMsg.getOldRelativePath(), msg.getRecipient());
+            LOG.debug("{}: Listener: TRANSFER_FILE {} from {}", localAddr, transMsg.getOldRelativePath(), msg.getSender());
 
             Path oldPath = Paths.get(dc.getAbsolutePath(transMsg.getOldRelativePath()));
             String p = dc.getAbsolutePath(transMsg.getNewRelativePath());
             Path newPath = Paths.get(p);
-            Path newDirPath = Paths.get(p.substring(0, p.lastIndexOf("\\")));
+            Path newDirPath = Paths.get(p.substring(0, p.lastIndexOf(File.separator)));
 
             try {
                 if (!Files.exists(newDirPath)) {

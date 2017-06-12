@@ -10,6 +10,8 @@ import java.util.Map;
  */
 public class Utils {
 
+    public static boolean exit;
+
     public static void closeSocket(Socket socket) {
         if (socket != null) {
             try {
