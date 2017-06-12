@@ -107,6 +107,7 @@ public class Discovery {
         } catch (SocketException e) {
             LOG.error(localAddr + ": Cannot get local host addresses");
         }
+        currentHostAddresses.add("127.0.1.1:" + localPort);
         return currentHostAddresses;
     }
 
@@ -153,6 +154,7 @@ public class Discovery {
             try {
                 InputStream in = socket.getInputStream();
                 OutputStream out = socket.getOutputStream();
+
 //                read and check magic package
                 byte[] buf = new byte[10];
                 int len = in.read(buf);
@@ -262,6 +264,7 @@ public class Discovery {
                 out.flush();
 
                 try {
+                    sleep(300);
                     ObjectOutputStream objOut = new ObjectOutputStream(out);
                     ObjectInputStream objIn = new ObjectInputStream(in);
 
@@ -301,6 +304,9 @@ public class Discovery {
 
                 } catch (ClassNotFoundException e) {
                     LOG.error(localAddr + ": Data transferring error from " + addr);
+                } catch (InterruptedException e) {
+                    LOG.error(localAddr + ": interrupted ");
+                    interrupt();
                 }
             } catch (IOException e) {
                 LOG.error(localAddr + ": Connection error with host " + addr);

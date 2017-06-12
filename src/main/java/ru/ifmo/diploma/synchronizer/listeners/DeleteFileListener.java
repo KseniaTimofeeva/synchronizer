@@ -29,10 +29,14 @@ public class DeleteFileListener extends AbstractListener {
 
             try {
                 Files.deleteIfExists(Paths.get(dc.getAbsolutePath(delMsg.getRelativePath())));
-                tasks.offer(new ResultMsg(localAddr, msg.getSender(), MessageState.SUCCESS, msg));
+                if (!msg.isBroadcast()) {
+                    tasks.offer(new ResultMsg(localAddr, msg.getSender(), MessageState.SUCCESS, msg));
+                }
 
             } catch (IOException e) {
-                tasks.offer(new ResultMsg(localAddr, msg.getSender(), MessageState.FAILED, msg));
+                if (!msg.isBroadcast()) {
+                    tasks.offer(new ResultMsg(localAddr, msg.getSender(), MessageState.FAILED, msg));
+                }
                 e.printStackTrace();
             }
         }

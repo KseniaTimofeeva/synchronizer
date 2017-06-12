@@ -42,7 +42,9 @@ public class TransferFileListener extends AbstractListener {
 
                 Files.move(oldPath, newPath, StandardCopyOption.REPLACE_EXISTING);
             } catch (IOException e) {
-                tasks.offer(new ResultMsg(msg.getSender(), msg.getSender(), MessageState.FAILED, msg));
+                if (!msg.isBroadcast()) {
+                    tasks.offer(new ResultMsg(msg.getSender(), msg.getSender(), MessageState.FAILED, msg));
+                }
 
                 e.printStackTrace();
             }

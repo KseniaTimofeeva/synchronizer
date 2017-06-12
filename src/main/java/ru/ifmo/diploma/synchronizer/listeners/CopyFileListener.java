@@ -40,13 +40,17 @@ public class CopyFileListener extends AbstractListener {
                 Files.copy(oldPath, newPath, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.COPY_ATTRIBUTES);
             }
             catch (IOException e) {
-                tasks.offer(new ResultMsg(localAddr, msg.getSender(), MessageState.FAILED, msg));
+                if (!msg.isBroadcast()) {
+                    tasks.offer(new ResultMsg(localAddr, msg.getSender(), MessageState.FAILED, msg));
+                }
 
                 e.printStackTrace();
             }
 
             dc.setCreationTime(newPath.toString(), copyMsg.getCreationTime());
-            tasks.offer(new ResultMsg(localAddr, msg.getSender(), MessageState.SUCCESS, msg));
+            if (!msg.isBroadcast()) {
+                tasks.offer(new ResultMsg(localAddr, msg.getSender(), MessageState.SUCCESS, msg));
+            }
         }
     }
 }
