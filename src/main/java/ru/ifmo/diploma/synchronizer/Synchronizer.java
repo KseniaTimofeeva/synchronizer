@@ -20,6 +20,8 @@ import ru.ifmo.diploma.synchronizer.messages.AbstractMsg;
 import ru.ifmo.diploma.synchronizer.protocol.handshake.Credentials;
 
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.ServerSocket;
@@ -29,7 +31,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Scanner;
+import java.util.Properties;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -42,6 +44,7 @@ public class Synchronizer extends Thread {
 
     private Map<String, Credentials> authorizationTable;
     private String startPath;
+    private String localIP;
     private int localPort;
     private List<FileInfo> filesInfo = new ArrayList<>();
     private BlockingQueue<AbstractMsg> readerTasks = new LinkedBlockingQueue<>();
@@ -52,13 +55,18 @@ public class Synchronizer extends Thread {
     private DirectoriesComparison dc;
     private List<Thread> threadList = new ArrayList<>();
     private Discovery discovery;
-    private BlockingQueue<AbstractMsg> offlineChanges = new LinkedBlockingQueue<>();
+    private Thread viewer;
+    private String localLogin;
+    private String localPassword;
 
-    public Synchronizer(String localIP, int localPort, Map<String, Credentials> authorizationTable, String startPath) {
+    public Synchronizer(String localIP, int localPort, Map<String, Credentials> authorizationTable, String startPath,
+                        String localLogin, String localPassword) {
         localAddr = localIP + ":" + localPort;
         this.localPort = localPort;
         this.authorizationTable = authorizationTable;
         this.startPath = startPath;
+        this.localLogin = localLogin;
+        this.localPassword = localPassword;
     }
 
     public String getLocalAddr() {
@@ -105,6 +113,10 @@ public class Synchronizer extends Thread {
         return discovery.getServerSocket();
     }
 
+    public Thread getViewer() {
+        return viewer;
+    }
+
     private void addListeners() {
         listeners.add(new CopyFileListener(localAddr, writerTasks, dc));
         listeners.add(new DeleteFileListener(localAddr, writerTasks, dc));
@@ -117,23 +129,20 @@ public class Synchronizer extends Thread {
         listeners.add(new TransferFileListener(localAddr, writerTasks, dc));
     }
 
-    @Override
-    public void run() {
+    public void startSynchronizer() {
+
         threadList.add(this);
 
         dc = new DirectoriesComparison(startPath, localAddr, writerTasks);
 
         new Exit(this).start();
-//        Runtime.getRuntime().addShutdownHook(new Exit(this));
 
         //поток для отслеживания изменения директории в режиме реального времени
-        Thread viewer = null;
         try {
             viewer = new Thread(new DirectoryChangesViewer(Paths.get(startPath), localAddr));
             viewer.start();
-            threadList.add(viewer);
         } catch (IOException e) {
-            //@TODO
+            //
         }
 
         addListeners();
@@ -146,19 +155,57 @@ public class Synchronizer extends Thread {
         tWriter.start(); //поток для отправки сообщений (в т.ч. broadcast)
         threadList.add(tWriter);
 
-        discovery = new Discovery(this);
+        discovery = new Discovery(this, localLogin, localPassword);
         discovery.startDiscovery();
     }
 
     public static void main(String[] args) {
 
-        if (args == null || args.length == 0) {
-            System.out.println("Please, specify the path of directory need to be synchronized");
-            System.out.println("Use java -jar synchronizer.jar startpath");
+        String startPath = null;
+
+        Properties properties = new Properties();
+        Map<String, Credentials> authorizationTable = new HashMap<>();
+
+        int localPort;
+        String localLogin;
+        String localPassword;
+        try {
+            FileInputStream fileIn = new FileInputStream("routes.properties");
+            properties.load(fileIn);
+
+            if (args == null || args.length == 0) {
+                startPath = properties.getProperty("pc_0.startPath");
+            } else {
+                startPath = args[0];
+            }
+            if (startPath == null) {
+                System.out.println("Please, specify the path of directory need to be synchronized");
+                System.out.println("Use 'java -jar synchronizer.jar startpath' or specify it in file 'routes.properties'");
+                return;
+            }
+
+            startPath = startPath.trim();
+            if (startPath.substring(startPath.length() - 1, startPath.length()).equals(File.separator)) {
+                startPath = startPath.substring(0, startPath.length() - 1); //удаляем последний сепаратор, если он есть
+            }
+            String[] addresses = properties.getProperty("address").split(";");
+            String[] logins = properties.getProperty("login").split(";");
+            String[] passwords = properties.getProperty("password").split(";");
+            localPort = Integer.parseInt(properties.getProperty("pc_0.localPort"));
+            localLogin = properties.getProperty("pc_0.login");
+            localPassword = properties.getProperty("pc_0.password");
+
+            for (int i = 0; i < addresses.length; i++) {
+                authorizationTable.put(addresses[i], new Credentials("", logins[i], passwords[i]));
+            }
+
+        } catch (FileNotFoundException e) {
+            System.out.println("File 'routes.properties' not found in current directory");
+            return;
+        } catch (IOException e) {
+            System.out.println("Can't load properties from file 'routes.properties'");
             return;
         }
-
-        String startPath = args[0];
 
         String localIP = null;
         try {
@@ -169,38 +216,6 @@ public class Synchronizer extends Thread {
 
         LOG.debug("Local IP: " + localIP);
 
-        Map<String, Credentials> authorizationTable1 = new HashMap<>();
-        authorizationTable1.put(localIP + ":60601", new Credentials("", "login60601", "password60601"));
-        authorizationTable1.put(localIP + ":60602", new Credentials("", "login60602", "password60602"));
-        authorizationTable1.put(localIP + ":60603", new Credentials("", "login60603", "password60603"));
-
-        Map<String, Credentials> authorizationTable2 = new HashMap<>();
-        authorizationTable2.put(localIP + ":60601", new Credentials("", "login60601", "password60601"));
-        authorizationTable2.put(localIP + ":60603", new Credentials("", "login60603", "password60603"));
-
-        Map<String, Credentials> authorizationTable3 = new HashMap<>();
-        authorizationTable3.put(localIP + ":60602", new Credentials("", "login60602", "password60602"));
-        authorizationTable3.put(localIP + ":60604", new Credentials("", "login60604", "password60604"));
-
-        Map<String, Credentials> authorizationTable4 = new HashMap<>();
-        authorizationTable4.put(localIP + ":60603", new Credentials("", "login60603", "password60603"));
-
-
-        new Synchronizer(localIP, 60601, authorizationTable1, startPath + File.separator + "synchronized_1").start();
-        threadSleep(3000);
-        new Synchronizer(localIP, 60602, authorizationTable2, startPath + File.separator + "synchronized_2").start();
-        threadSleep(3000);
-        new Synchronizer(localIP, 60603, authorizationTable3, startPath + File.separator + "synchronized_3").start();
-        threadSleep(3000);
-        new Synchronizer(localIP, 60604, authorizationTable4, startPath + File.separator + "synchronized_4").start();
-
-    }
-
-    private static void threadSleep(int ms) {
-        try {
-            Thread.sleep(ms);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
+        new Synchronizer(localIP, localPort, authorizationTable, startPath, localLogin, localPassword).startSynchronizer();
     }
 }

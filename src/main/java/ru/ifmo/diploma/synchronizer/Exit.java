@@ -45,6 +45,10 @@ public class Exit extends Thread {
 
                 LOG.trace("Start ending host " + localAddr);
 
+                if (synchronizer.getViewer() != null) {
+                    synchronizer.getViewer().interrupt();
+                }
+
                 dc.saveDirectoryState(dc.getAbsolutePath("log.bin"));
 
                 if (synchronizer.getServerSocket() != null) {
@@ -63,15 +67,16 @@ public class Exit extends Thread {
                     }
                 }
 
-                if (!threadList.isEmpty()) {
-                    for (Thread t : threadList) {
+                if (threadList.size() > 1) {
+                    for (int i = 1; i < threadList.size(); i++) {
                         LOG.trace("{}: End: interrupt thread", localAddr);
-
-                        t.interrupt();
+                        threadList.get(i).interrupt();
                     }
                 }
 
                 LOG.debug("END HOST " + localAddr);
+
+                threadList.get(0).interrupt();
                 break;
             }
         }

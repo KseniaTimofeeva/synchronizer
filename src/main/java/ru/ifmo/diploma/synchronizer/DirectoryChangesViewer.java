@@ -65,6 +65,7 @@ public class DirectoryChangesViewer implements Runnable {
             try {
                 key = watcher.take();
             } catch (InterruptedException x) {
+                LOG.debug("Directory changes viewer interrupted on {}", localAddr);
                 return;
             }
 

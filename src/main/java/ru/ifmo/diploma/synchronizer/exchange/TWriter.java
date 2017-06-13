@@ -52,6 +52,11 @@ public class TWriter extends Thread {
                     try {
                         LOG.trace(localAddr + ": writer: " + msg.getType() + " to " + msg.getRecipient());
                         addr = msg.getRecipient();
+
+                        if (connections.get(msg.getRecipient()) == null) {
+                            continue;
+                        }
+
                         ObjectOutputStream objOut = connections.get(msg.getRecipient()).getObjOut();
                         objOut.writeObject(msg);
                         objOut.flush();
@@ -81,9 +86,6 @@ public class TWriter extends Thread {
         } finally {
             if (!Utils.exit) {
                 LOG.error(localAddr + ": Writer error");
-            }
-            for (CurrentConnections con : connections.values()) {
-                Utils.closeSocket(con.getSocket());
             }
         }
     }

@@ -36,9 +36,11 @@ public class Discovery {
     private Set<String> currentHostAddresses;
     private ServerSocket serverSocket;
     private byte[] localMagicPackage = {5, 4, 3, 2};
+    private String localLogin;
+    private String localPassword;
 
 
-    public Discovery(Synchronizer synchronizer) {
+    public Discovery(Synchronizer synchronizer, String localLogin, String localPassword) {
         this.synchronizer = synchronizer;
         localAddr = synchronizer.getLocalAddr();
         localPort = synchronizer.getLocalPort();
@@ -48,6 +50,8 @@ public class Discovery {
         readerTasks = synchronizer.getReaderTasks();
         writerTasks = synchronizer.getWriterTasks();
         connections = synchronizer.getConnections();
+        this.localLogin = localLogin;
+        this.localPassword = localPassword;
     }
 
     public ServerSocket getServerSocket() {
@@ -72,14 +76,14 @@ public class Discovery {
                 continue;
             }
 
-            Socket socket;
             if (connections.containsKey(addr)) {
                 continue;
             }
+            Socket socket;
             socket = new Socket(); //если такого подключения нет, то подключаемся
 
             try {
-                socket.connect(parseAddress(addr));
+                socket.connect(parseAddress(addr), 5000);
                 (new OutputConnectionThread(addr, socket)).start();
 
             } catch (IOException e) {
@@ -149,12 +153,12 @@ public class Discovery {
         @Override
         public void run() {
 
-            boolean interrupted = false;
+            boolean toDelete = false;
+            boolean readerStopped = false;
 
             try {
                 InputStream in = socket.getInputStream();
                 OutputStream out = socket.getOutputStream();
-
 //                read and check magic package
                 byte[] buf = new byte[10];
                 int len = in.read(buf);
@@ -171,6 +175,7 @@ public class Discovery {
                 try {
                     ObjectInputStream objIn = new ObjectInputStream(in);
                     ObjectOutputStream objOut = new ObjectOutputStream(out);
+
                     while (!isInterrupted()) {
 
                         Object obj = objIn.readObject();
@@ -181,21 +186,22 @@ public class Discovery {
                         }
 
                         if (obj instanceof Credentials) {
+                            addr = ((Credentials) obj).getFromAddr();
 
                             LOG.debug(obj + " from " + ((Credentials) obj).getFromAddr() + " to " + localAddr);
 
+                            if ((connections.putIfAbsent(addr, new CurrentConnections(this, socket, objIn, objOut))) != null) {
+                                objOut.writeObject(new YesNoPackage(localAddr, false, "Repeat connection"));
+                                objOut.flush();
+                                LOG.warn(localAddr + ": Host " + addr + " is already connected");
+                                return;
+                            }
+                            LOG.trace(localAddr + ": List of connections " + connections);
+
                             //credentials checking
-                            addr = ((Credentials) obj).getFromAddr();
                             Credentials credFromTable = authorizationTable.get(addr);
 
                             if (credFromTable == null || obj.equals(credFromTable)) {
-                                if ((connections.putIfAbsent(addr, new CurrentConnections(this, socket, objIn, objOut))) != null) {
-                                    objOut.writeObject(new YesNoPackage(localAddr, false, "Repeat connection"));
-                                    objOut.flush();
-                                    LOG.warn(localAddr + ": Host " + addr + " is already connected");
-                                    return;
-                                }
-                                LOG.trace(localAddr + ": List of connections " + connections);
                                 objOut.writeObject(new YesNoPackage(localAddr, true, ""));
                                 objOut.flush();
                                 objOut.writeObject(new RoutingTable(localAddr, authorizationTable));
@@ -203,6 +209,7 @@ public class Discovery {
                             } else {
                                 objOut.writeObject(new YesNoPackage(localAddr, false, "Invalid credentials "));
                                 LOG.error(localAddr + ": Invalid credentials from " + addr);
+                                toDelete = true;
                                 return;
                             }
                         } else if (obj instanceof RoutingTable) {
@@ -217,25 +224,27 @@ public class Discovery {
 
                     //current thread starts reading msgs
                     new TReader(this, synchronizer, readerTasks, socket, addr).startReader();
-                    interrupted = true;
+                    readerStopped = true;
                 } catch (ClassNotFoundException e) {
+                    toDelete = true;
                     LOG.error(localAddr + ": Data transferring error");
                 }
             } catch (IOException e) {
                 if (addr != null) {
+                    toDelete = true;
                     LOG.error(localAddr + ": Connection error with host " + addr);
                 } else {
                     LOG.error(localAddr + ": Socket error " + socket);
                 }
             } finally {
-                if (!interrupted) {
-                    LOG.error(localAddr + ": Remote host is not authorized. Socket closed");
-                }
-                if (addr != null) {
-                    if (!Utils.exit) {
-                        LOG.error(localAddr + ": " + addr + " stopped");
-                    }
+                if (toDelete) {
                     connections.remove(addr);
+                }
+                if (!Utils.exit) {
+                    if (!readerStopped) {
+                        LOG.error(localAddr + ": Remote host is not authorized. Socket closed");
+                    }
+                    LOG.error(localAddr + ": " + addr + " stopped");
                 }
                 Utils.closeSocket(socket);
             }
@@ -253,22 +262,25 @@ public class Discovery {
 
         @Override
         public void run() {
+            if (connections.putIfAbsent(addr, new CurrentConnections(this, socket)) != null) {
+                return;
+            }
 
             try {
                 OutputStream out = socket.getOutputStream();
                 InputStream in = socket.getInputStream();
 
+
                 LOG.debug(localAddr + ": magic to " + addr);
 
                 out.write(localMagicPackage);
                 out.flush();
-
                 try {
                     sleep(300);
                     ObjectOutputStream objOut = new ObjectOutputStream(out);
                     ObjectInputStream objIn = new ObjectInputStream(in);
 
-                    objOut.writeObject(new Credentials(localAddr, "login" + localPort, "password" + localPort));
+                    objOut.writeObject(new Credentials(localAddr, localLogin, localPassword));
                     objOut.flush();
 
                     //handshake
@@ -285,7 +297,7 @@ public class Discovery {
                                 LOG.warn(localAddr + ": Not authorized by " + ((YesNoPackage) obj).getFromAddr());
                                 return;
                             }
-                            connections.put(addr, new CurrentConnections(this, socket, objIn, objOut));
+                            connections.get(addr).setObjInObjOut(objIn, objOut);
                             LOG.trace(localAddr + ": List of connections " + connections);
                             LOG.info(localAddr + ": connected to " + addr);
 

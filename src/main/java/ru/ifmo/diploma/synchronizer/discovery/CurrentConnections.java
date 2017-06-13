@@ -18,9 +18,19 @@ public class CurrentConnections {
     private ObjectOutputStream objOut;
 //    private TWriter writer;
 
+    public CurrentConnections(Thread thread, Socket socket) {
+        this.thread = thread;
+        this.socket = socket;
+    }
+
     public CurrentConnections(Thread thread, Socket socket, ObjectInputStream objIn, ObjectOutputStream objOut) {
         this.thread = thread;
         this.socket = socket;
+        this.objIn = objIn;
+        this.objOut = objOut;
+    }
+
+    public void setObjInObjOut(ObjectInputStream objIn, ObjectOutputStream objOut) {
         this.objIn = objIn;
         this.objOut = objOut;
     }
