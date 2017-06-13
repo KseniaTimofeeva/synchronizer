@@ -184,11 +184,21 @@ public class DirectoriesComparison {
                 tasks.offer(msg);
             }
 
-            if (!isOriginal && isCopied) {
-                LOG.debug("{}: File {} was locally deleted after being copied", localAddr, deletedFilePath);
+            if (isCopied) {
+                LOG.warn(deletedFilePath);
+                boolean isFound=false;
+                for(FileInfo fi:filesInfo){
+                    if(deletedFilePath.equals(fi.getRelativePath())){
+                        isFound=true;
+                        break;
+                    }
+                }
+                if(!isFound) {
+                    LOG.debug("{}: File {} was locally deleted after being copied", localAddr, deletedFilePath);
 
-                msg = new DeleteFileMsg(localAddr, addr, deletedFilePath);
-                tasks.offer(msg);
+                    msg = new DeleteFileMsg(localAddr, addr, deletedFilePath);
+                    tasks.offer(msg);
+                }
             }
 
         }

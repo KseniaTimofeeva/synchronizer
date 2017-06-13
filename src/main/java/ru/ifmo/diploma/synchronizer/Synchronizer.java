@@ -55,6 +55,7 @@ public class Synchronizer extends Thread {
     private DirectoriesComparison dc;
     private List<Thread> threadList = new ArrayList<>();
     private Discovery discovery;
+    private BlockingQueue<FileOperation> fileOperations = new LinkedBlockingQueue<>();
     private Thread viewer;
     private String localLogin;
     private String localPassword;
@@ -75,6 +76,10 @@ public class Synchronizer extends Thread {
 
     public Map<String, CurrentConnections> getConnections() {
         return connections;
+    }
+
+    public BlockingQueue<FileOperation> getFileOperations() {
+        return fileOperations;
     }
 
     public int getLocalPort() {
@@ -118,15 +123,15 @@ public class Synchronizer extends Thread {
     }
 
     private void addListeners() {
-        listeners.add(new CopyFileListener(localAddr, writerTasks, dc));
-        listeners.add(new DeleteFileListener(localAddr, writerTasks, dc));
-        listeners.add(new FileListener(localAddr, writerTasks, dc));
+        listeners.add(new CopyFileListener(localAddr, writerTasks, dc, fileOperations));
+        listeners.add(new DeleteFileListener(localAddr, writerTasks, dc, fileOperations));
+        listeners.add(new FileListener(localAddr, writerTasks, dc, fileOperations));
         listeners.add(new ListFilesListener(localAddr, writerTasks, dc));
-        listeners.add(new RenameFileListener(localAddr, writerTasks, dc));
+        listeners.add(new RenameFileListener(localAddr, writerTasks, dc, fileOperations));
         listeners.add(new ResultListener(localAddr, writerTasks, dc));
         listeners.add(new SendFileRequestListener(localAddr, writerTasks, dc));
         listeners.add(new SendListFilesCommandListener(localAddr, writerTasks, dc));
-        listeners.add(new TransferFileListener(localAddr, writerTasks, dc));
+        listeners.add(new TransferFileListener(localAddr, writerTasks, dc, fileOperations));
     }
 
     public void startSynchronizer() {
@@ -139,7 +144,7 @@ public class Synchronizer extends Thread {
 
         //поток для отслеживания изменения директории в режиме реального времени
         try {
-            viewer = new Thread(new DirectoryChangesViewer(Paths.get(startPath), localAddr));
+            viewer = new Thread(new DirectoryChangesViewer(Paths.get(startPath), localAddr, fileOperations, writerTasks));
             viewer.start();
         } catch (IOException e) {
             //
