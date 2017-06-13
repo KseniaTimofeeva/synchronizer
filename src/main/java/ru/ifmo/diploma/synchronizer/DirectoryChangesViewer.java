@@ -2,21 +2,21 @@ package ru.ifmo.diploma.synchronizer;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import ru.ifmo.diploma.synchronizer.messages.AbstractMsg;
 
 import java.io.IOException;
 import java.nio.file.FileSystems;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.WatchEvent;
 import java.nio.file.WatchKey;
 import java.nio.file.WatchService;
 import java.nio.file.attribute.BasicFileAttributes;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 
 import static java.nio.file.StandardWatchEventKinds.*;
 
@@ -30,13 +30,19 @@ public class DirectoryChangesViewer implements Runnable {
     private final WatchService watcher;
     private final Map<WatchKey, Path> keys;
     private String localAddr;
+    private final String startPath;
+    private BlockingQueue<FileOperation> fileOperations;
+    private BlockingQueue<AbstractMsg> tasks;
 
 
-    DirectoryChangesViewer(Path dir, String localAddr) throws IOException {
+    DirectoryChangesViewer(Path dir, String localAddr, BlockingQueue<FileOperation> fileOperations,BlockingQueue<AbstractMsg> tasks) throws IOException {
         this.watcher = FileSystems.getDefault().newWatchService();
-        this.keys = new HashMap<WatchKey, Path>();
+        this.keys = new HashMap<>();
         this.localAddr = localAddr;
+        startPath=dir.toString();
 
+        this.fileOperations=fileOperations;
+        this.tasks=tasks;
         walkAndRegisterDirectories(dir);
     }
 
@@ -57,8 +63,12 @@ public class DirectoryChangesViewer implements Runnable {
 
     @Override
     public void run() {
-        LOG.debug("Directory changes viewer started on {}", localAddr);
+        BlockingQueue<Event> events=new LinkedBlockingQueue<>();
 
+        Thread processor=new Thread(new EventsProcessor(localAddr,events,startPath, fileOperations, tasks));
+        processor.start();
+
+        LOG.debug("Directory changes viewer started on {}", localAddr);
         while (true) {
 
             WatchKey key;
@@ -71,34 +81,21 @@ public class DirectoryChangesViewer implements Runnable {
             Path dir = keys.get(key);
 
             for (WatchEvent event : key.pollEvents()) {
-                String kind = event.kind().name();
 
                 Path watchedObj = dir.resolve(((WatchEvent<Path>) event).context());
-
-                try {
-                    if (Files.isDirectory(watchedObj)) {
-                        if (kind.equals("ENTRY_CREATE"))
-                            walkAndRegisterDirectories(watchedObj);
-                    } else {
-                        switch (kind) {
-                            case "ENTRY_CREATE":
-                                System.out.println("ENTRY_CREATE");
-                                //send new file to all hosts
-                                break;
-                            case "ENTRY_MODIFY":
-                                System.out.println("ENTRY_MODIFY");
-                                //send delta to all hosts
-                                break;
-                            case "ENTRY_DELETE":
-                                System.out.println("ENTRY_DELETE");
-                                //notify all hosts to delete this file
-                                break;
+                if (!watchedObj.endsWith("log.bin")) {
+                    try {
+                        if (!Files.isDirectory(watchedObj)) {
+                            events.offer(new Event(System.currentTimeMillis(), event, watchedObj));
+                        } else {
+                            if ("ENTRY_CREATE".equals(event.kind().name()))
+                                walkAndRegisterDirectories(watchedObj);
                         }
+                    } catch (IOException e) {
+                        e.printStackTrace();
                     }
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
 
+                }
             }
 
             if (!key.reset()) {

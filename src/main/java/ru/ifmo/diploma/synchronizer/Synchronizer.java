@@ -28,7 +28,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Scanner;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -51,6 +50,8 @@ public class Synchronizer extends Thread {
     private DirectoriesComparison dc;
     private List<Thread> threadList = new ArrayList<>();
     private Discovery discovery;
+    private BlockingQueue<FileOperation> fileOperations = new LinkedBlockingQueue<>();
+
 
     public Synchronizer(String localIP, int localPort, Map<String, Credentials> authorizationTable, String startPath) {
         localAddr = localIP + ":" + localPort;
@@ -65,6 +66,10 @@ public class Synchronizer extends Thread {
 
     public Map<String, CurrentConnections> getConnections() {
         return connections;
+    }
+
+    public BlockingQueue<FileOperation> getFileOperations() {
+        return fileOperations;
     }
 
     public int getLocalPort() {
@@ -104,15 +109,15 @@ public class Synchronizer extends Thread {
     }
 
     private void addListeners() {
-        listeners.add(new CopyFileListener(localAddr, writerTasks, dc));
-        listeners.add(new DeleteFileListener(localAddr, writerTasks, dc));
-        listeners.add(new FileListener(localAddr, writerTasks, dc));
+        listeners.add(new CopyFileListener(localAddr, writerTasks, dc, fileOperations));
+        listeners.add(new DeleteFileListener(localAddr, writerTasks, dc, fileOperations));
+        listeners.add(new FileListener(localAddr, writerTasks, dc, fileOperations));
         listeners.add(new ListFilesListener(localAddr, writerTasks, dc));
-        listeners.add(new RenameFileListener(localAddr, writerTasks, dc));
+        listeners.add(new RenameFileListener(localAddr, writerTasks, dc, fileOperations));
         listeners.add(new ResultListener(localAddr, writerTasks, dc));
         listeners.add(new SendFileRequestListener(localAddr, writerTasks, dc));
         listeners.add(new SendListFilesCommandListener(localAddr, writerTasks, dc));
-        listeners.add(new TransferFileListener(localAddr, writerTasks, dc));
+        listeners.add(new TransferFileListener(localAddr, writerTasks, dc, fileOperations));
     }
 
     @Override
@@ -127,7 +132,7 @@ public class Synchronizer extends Thread {
         //поток для отслеживания изменения директории в режиме реального времени
         Thread viewer = null;
         try {
-            viewer = new Thread(new DirectoryChangesViewer(Paths.get(startPath), localAddr));
+            viewer = new Thread(new DirectoryChangesViewer(Paths.get(startPath), localAddr, fileOperations, writerTasks));
             viewer.start();
             threadList.add(viewer);
         } catch (IOException e) {

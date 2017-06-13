@@ -3,6 +3,8 @@ package ru.ifmo.diploma.synchronizer.listeners;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.ifmo.diploma.synchronizer.DirectoriesComparison;
+import ru.ifmo.diploma.synchronizer.FileOperation;
+import ru.ifmo.diploma.synchronizer.OperationType;
 import ru.ifmo.diploma.synchronizer.messages.*;
 
 import java.io.IOException;
@@ -15,9 +17,11 @@ import java.util.concurrent.BlockingQueue;
  */
 public class DeleteFileListener extends AbstractListener {
     private static final Logger LOG = LogManager.getLogger(DeleteFileListener.class);
+    private BlockingQueue<FileOperation> fileOperations;
 
-    public DeleteFileListener(String localAddr, BlockingQueue<AbstractMsg> tasks, DirectoriesComparison dc) {
+    public DeleteFileListener(String localAddr, BlockingQueue<AbstractMsg> tasks, DirectoriesComparison dc, BlockingQueue<FileOperation> fileOperations) {
         super(localAddr, tasks, dc);
+        this.fileOperations=fileOperations;
     }
 
     @Override
@@ -26,7 +30,7 @@ public class DeleteFileListener extends AbstractListener {
 
             DeleteFileMsg delMsg = (DeleteFileMsg) msg;
             LOG.debug("{}: Listener: DELETE_FILE {} from {}", localAddr, delMsg.getRelativePath(), msg.getSender());
-
+            fileOperations.add(new FileOperation(OperationType.ENTRY_DELETE, delMsg.getRelativePath()));
             try {
                 Files.deleteIfExists(Paths.get(dc.getAbsolutePath(delMsg.getRelativePath())));
                 tasks.offer(new ResultMsg(localAddr, msg.getSender(), MessageState.SUCCESS, msg));
