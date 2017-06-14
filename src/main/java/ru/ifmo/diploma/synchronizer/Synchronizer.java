@@ -193,7 +193,7 @@ public class Synchronizer extends Thread {
 
 //            startPath = startPath.replaceAll("\\\\", "/").trim();
             String lastChar = startPath.substring(startPath.length() - 1, startPath.length());
-            if (lastChar.equals("\\")) {
+            if (lastChar.equals("\\") || lastChar.equals("/")) {
                 startPath = startPath.substring(0, startPath.length() - 1); //удаляем последний сепаратор, если он есть
             }
             String[] addresses = properties.getProperty("address").split(";");
