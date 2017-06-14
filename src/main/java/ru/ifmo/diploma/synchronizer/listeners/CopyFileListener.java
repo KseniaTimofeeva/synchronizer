@@ -18,7 +18,8 @@ import java.util.concurrent.BlockingQueue;
 public class CopyFileListener extends AbstractListener {
     private static final Logger LOG = LogManager.getLogger(CopyFileListener.class);
     private BlockingQueue<FileOperation>fileOperations;
-    public CopyFileListener(String localAddr, BlockingQueue<AbstractMsg> tasks, DirectoriesComparison dc, BlockingQueue<FileOperation> fileOperations) {
+    public CopyFileListener(String localAddr, BlockingQueue<AbstractMsg> tasks, DirectoriesComparison dc,
+                            BlockingQueue<FileOperation> fileOperations) {
         super(localAddr, tasks, dc);
         this.fileOperations=fileOperations;
     }
@@ -28,13 +29,14 @@ public class CopyFileListener extends AbstractListener {
         if (msg.getType() == MessageType.COPY_FILE) {
 
             CopyFileMsg copyMsg = (CopyFileMsg) msg;
-            LOG.debug("{}: Listener: COPY_FILE {} from {}", localAddr, copyMsg.getRelativePath(), msg.getSender());
+            LOG.debug("{}: Listener: COPY_FILE {} to dir {} from host {}", localAddr, copyMsg.getRelativePath(),
+                    copyMsg.getNewRelativePath(), msg.getSender());
 
             Path oldPath = Paths.get(dc.getAbsolutePath(copyMsg.getRelativePath()));
             String p = dc.getAbsolutePath(copyMsg.getNewRelativePath());
             Path newPath = Paths.get(p);
             Path newDirPath = Paths.get(p.substring(0, p.lastIndexOf(File.separator)));
-            fileOperations.add(new FileOperation(OperationType.ENTRY_RENAME, copyMsg.getRelativePath()));
+            fileOperations.add(new FileOperation(/*OperationType.ENTRY_RENAME*/ OperationType.ENTRY_COPY_OR_CREATE, copyMsg.getRelativePath()));
 
             try {
                 if (!Files.exists(newDirPath)) {

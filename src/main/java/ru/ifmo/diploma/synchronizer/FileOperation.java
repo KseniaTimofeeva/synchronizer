@@ -19,7 +19,7 @@ public class FileOperation {
 
         FileOperation that = (FileOperation) o;
 
-        if (type != that.type) return false;
+        if (!type.equals(that.type)) return false;
         return fileRelativePath.equals(that.fileRelativePath);
     }
 
@@ -28,5 +28,13 @@ public class FileOperation {
         int result = type.hashCode();
         result = 31 * result + fileRelativePath.hashCode();
         return result;
+    }
+
+    @Override
+    public String toString() {
+        return "FileOperation{" +
+                "type=" + type +
+                ", fileRelativePath='" + fileRelativePath + '\'' +
+                '}';
     }
 }

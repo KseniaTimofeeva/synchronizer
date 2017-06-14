@@ -50,10 +50,12 @@ public class TWriter extends Thread {
                 if (!msg.isBroadcast()) {
 
                     try {
-                        LOG.trace(localAddr + ": writer: " + msg.getType() + " to " + msg.getRecipient());
+                        LOG.debug(localAddr + ": writer: " + msg.getType() + " to " + msg.getRecipient());
                         addr = msg.getRecipient();
+                        LOG.debug("{}: Writer: Connections {}", localAddr, connections);
 
                         if (connections.get(msg.getRecipient()) == null) {
+                            LOG.debug("{}: Writer error. Connections error with {}", localAddr, msg.getRecipient());
                             continue;
                         }
 
@@ -65,7 +67,7 @@ public class TWriter extends Thread {
                         Utils.closeSocket(connections.remove(addr).getSocket());
                     }
                 } else {
-                    LOG.debug(localAddr + ": writer: broadcast " + msg.getType());
+                    LOG.debug("{}: writer: broadcast {}", localAddr, msg.getType());
                     for (Map.Entry<String, CurrentConnections> entry : connections.entrySet()) {
 
                         try {

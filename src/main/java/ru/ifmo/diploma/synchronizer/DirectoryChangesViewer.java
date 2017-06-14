@@ -33,9 +33,11 @@ public class DirectoryChangesViewer implements Runnable {
     private final String startPath;
     private BlockingQueue<FileOperation> fileOperations;
     private BlockingQueue<AbstractMsg> tasks;
+    private List<Thread> threadList;
 
 
-    DirectoryChangesViewer(Path dir, String localAddr, BlockingQueue<FileOperation> fileOperations,BlockingQueue<AbstractMsg> tasks) throws IOException {
+    DirectoryChangesViewer(Path dir, String localAddr, BlockingQueue<FileOperation> fileOperations,
+                           BlockingQueue<AbstractMsg> tasks, List<Thread> threadList) throws IOException {
         this.watcher = FileSystems.getDefault().newWatchService();
         this.keys = new HashMap<>();
         this.localAddr = localAddr;
@@ -43,6 +45,7 @@ public class DirectoryChangesViewer implements Runnable {
 
         this.fileOperations=fileOperations;
         this.tasks=tasks;
+        this.threadList = threadList;
         walkAndRegisterDirectories(dir);
     }
 
@@ -68,6 +71,8 @@ public class DirectoryChangesViewer implements Runnable {
         Thread processor=new Thread(new EventsProcessor(localAddr,events,startPath, fileOperations, tasks));
         processor.start();
 
+        threadList.add(processor);
+
         LOG.debug("Directory changes viewer started on {}", localAddr);
         while (!Thread.currentThread().isInterrupted()) {
 
@@ -75,6 +80,7 @@ public class DirectoryChangesViewer implements Runnable {
             try {
                 key = watcher.take();
             } catch (InterruptedException x) {
+                Thread.currentThread().interrupt();
                 LOG.debug("Directory changes viewer interrupted on {}", localAddr);
                 return;
             }

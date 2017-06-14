@@ -120,6 +120,7 @@ public class Discovery {
     }
 
     private void startAccept() {
+        String localIP = synchronizer.getLocalIP();
 
         try (ServerSocket ssocket = new ServerSocket(localPort)) {   //стартуем на заданном порту
             LOG.debug(localAddr + ": Server started on " + ssocket);
@@ -239,6 +240,7 @@ public class Discovery {
             } finally {
                 if (toDelete) {
                     connections.remove(addr);
+                    LOG.trace("{}: input: delete from connections {}", localAddr, addr);
                 }
                 if (!Utils.exit) {
                     if (!readerStopped) {
@@ -327,6 +329,7 @@ public class Discovery {
                     LOG.error(localAddr + ": " + addr + " stopped");
                 }
                 connections.remove(addr);
+                LOG.trace("{}: output: delete from connections {}", localAddr, addr);
                 Utils.closeSocket(socket);
             }
         }

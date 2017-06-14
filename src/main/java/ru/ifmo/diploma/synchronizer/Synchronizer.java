@@ -122,6 +122,10 @@ public class Synchronizer extends Thread {
         return viewer;
     }
 
+    public String getLocalIP() {
+        return localIP;
+    }
+
     private void addListeners() {
         listeners.add(new CopyFileListener(localAddr, writerTasks, dc, fileOperations));
         listeners.add(new DeleteFileListener(localAddr, writerTasks, dc, fileOperations));
@@ -144,10 +148,10 @@ public class Synchronizer extends Thread {
 
         //поток для отслеживания изменения директории в режиме реального времени
         try {
-            viewer = new Thread(new DirectoryChangesViewer(Paths.get(startPath), localAddr, fileOperations, writerTasks));
+            viewer = new Thread(new DirectoryChangesViewer(Paths.get(startPath), localAddr, fileOperations, writerTasks, threadList));
             viewer.start();
         } catch (IOException e) {
-            //
+//
         }
 
         addListeners();
@@ -174,6 +178,8 @@ public class Synchronizer extends Thread {
         int localPort;
         String localLogin;
         String localPassword;
+        String localIP = null;
+
         try {
             FileInputStream fileIn = new FileInputStream("routes.properties");
             properties.load(fileIn);
@@ -189,8 +195,9 @@ public class Synchronizer extends Thread {
                 return;
             }
 
-            startPath = startPath.trim();
-            if (startPath.substring(startPath.length() - 1, startPath.length()).equals(File.separator)) {
+//            startPath = startPath.replaceAll("\\\\", File.separator).trim();
+            String lastChar = startPath.substring(startPath.length() - 1, startPath.length());
+            if (lastChar.equals("\\")) {
                 startPath = startPath.substring(0, startPath.length() - 1); //удаляем последний сепаратор, если он есть
             }
             String[] addresses = properties.getProperty("address").split(";");
@@ -199,6 +206,7 @@ public class Synchronizer extends Thread {
             localPort = Integer.parseInt(properties.getProperty("pc_0.localPort"));
             localLogin = properties.getProperty("pc_0.login");
             localPassword = properties.getProperty("pc_0.password");
+            localIP = properties.getProperty("pc_0.localIP");
 
             for (int i = 0; i < addresses.length; i++) {
                 authorizationTable.put(addresses[i], new Credentials("", logins[i], passwords[i]));
@@ -212,11 +220,12 @@ public class Synchronizer extends Thread {
             return;
         }
 
-        String localIP = null;
-        try {
-            localIP = InetAddress.getLocalHost().getHostAddress();
-        } catch (UnknownHostException e) {
-            LOG.error("Synchronizer can't identify local IP");
+        if (localIP == null || localIP.isEmpty()) {
+            try {
+                localIP = InetAddress.getLocalHost().getHostAddress();
+            } catch (UnknownHostException e) {
+                LOG.error("Synchronizer can't identify local IP");
+            }
         }
 
         LOG.debug("Local IP: " + localIP);
