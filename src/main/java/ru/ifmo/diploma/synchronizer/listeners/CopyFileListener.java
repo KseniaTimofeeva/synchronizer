@@ -36,7 +36,7 @@ public class CopyFileListener extends AbstractListener {
             String p = dc.getAbsolutePath(copyMsg.getNewRelativePath());
             Path newPath = Paths.get(p);
             Path newDirPath = Paths.get(p.substring(0, p.lastIndexOf(File.separator)));
-            fileOperations.add(new FileOperation(OperationType.ENTRY_COPY_OR_CREATE, dc.getAbsolutePath(copyMsg.getRelativePath())/*copyMsg.getRelativePath()*/));
+            fileOperations.add(new FileOperation(OperationType.ENTRY_COPY_OR_CREATE, dc.getAbsolutePath(copyMsg.getRelativePath())));
 
             try {
                 if (!Files.exists(newDirPath)) {

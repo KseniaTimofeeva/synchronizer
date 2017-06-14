@@ -90,35 +90,14 @@ public class EventsProcessor implements Runnable {
                                         break;
                                     }
                                 }
-                                operation = new FileOperation(OperationType.ENTRY_COPY_OR_CREATE, event.getAbsPath().toString()/*event.getEvent().context().toString()*/);
+                                operation = new FileOperation(OperationType.ENTRY_COPY_OR_CREATE, event.getAbsPath().toString());
                                 msg = sendFileBroadcast(event.getAbsPath());
-                                LOG.debug("{}: {} {}\n", /*"ENTRY_COPY"*/"ENTRY_COPY_OR_CREATE", event.getEvent().context(), prevAbsPath);
+                                LOG.debug("{}: {} {}\n", "ENTRY_COPY_OR_CREATE", event.getEvent().context(), prevAbsPath);
                                 break;
                             }
 
-                            /*if ((modEvent = events.peek()) != null) {
-                                if ("ENTRY_MODIFY".equals(modEvent.getEvent().kind().name()) &&
-                                        (modEvent.getEventTime() - event.getEventTime()) < 300) {
-                                    prevAbsPath = modEvent.getAbsPath();
-                                    events.poll();
-                                    Thread.sleep(20);
-                                    if ((modEvent = events.peek()) != null) {
-                                        if (*//*!*//*("ENTRY_MODIFY".equals(modEvent.getEvent().kind().name()) &&
-                                                (modEvent.getEventTime() - event.getEventTime()) < 300)) {
-                                            prevAbsPath = modEvent.getAbsPath();
-                                            events.poll();
-                                            Thread.sleep(20);
-                                        }
 
-                                    }
-                                }
-                                operation = new FileOperation(OperationType.ENTRY_COPY_OR_CREATE, event.getEvent().context().toString());
-                                msg = sendFileBroadcast(event.getAbsPath());
-                                LOG.debug("{}: {} {}\n", *//*"ENTRY_COPY"*//*"ENTRY_COPY_OR_CREATE", event.getEvent().context(), prevAbsPath);
-
-                                break;
-                            }*/
-                            operation = new FileOperation(OperationType.ENTRY_CREATE, event.getAbsPath().toString()/*event.getEvent().context().toString()*/);
+                            operation = new FileOperation(OperationType.ENTRY_CREATE, event.getAbsPath().toString());
                             msg = sendFileBroadcast(event.getAbsPath());
                             LOG.debug("{} {}: {} {}\n", event.getEventTime(), kind, event.getEvent().context());
 
@@ -138,21 +117,8 @@ public class EventsProcessor implements Runnable {
                                     break;
                                 }
                             }
-                            /*if ((modEvent = events.peek()) != null) {
-                                while ("ENTRY_MODIFY".equals(modEvent.getEvent().kind().name()) &&
-                                        (modEvent.getEventTime() - event.getEventTime()) < 300) {
-                                    events.poll();
-                                    Thread.sleep(20);
-                                }
-                               *//* if ("ENTRY_MODIFY".equals(modEvent.getEvent().kind().name()) &&
-                                        (modEvent.getEventTime() - event.getEventTime()) < 300) {
 
-                                    events.poll();
-                                    Thread.sleep(20);
-
-                                }*//*
-                            }*/
-                            operation = new FileOperation(OperationType.ENTRY_MODIFY, event.getAbsPath().toString()/*event.getEvent().context().toString()*/);
+                            operation = new FileOperation(OperationType.ENTRY_MODIFY, event.getAbsPath().toString());
                             msg = sendFileBroadcast(event.getAbsPath());
 
                             LOG.debug("{} {}: {} {}\n", event.getEventTime(), kind, event.getEvent().context());
@@ -181,23 +147,14 @@ public class EventsProcessor implements Runnable {
                                             break;
                                         }
                                     }
-                                    /*if ((modEvent = events.peek()) != null) {
-                                        if ("ENTRY_MODIFY".equals(modEvent.getEvent().kind().name()) &&
-                                                (modEvent.getEventTime() - createEvent.getEventTime()) < 300) {
-                                            prevAbsPath = modEvent.getAbsPath();
 
-                                            events.poll();
-                                            Thread.sleep(20);
-                                        }
-
-                                    }*/
                                     if (createEvent.getEvent().context().equals(event.getEvent().context())) {
-                                        operation = new FileOperation(OperationType.ENTRY_MOVE, event.getAbsPath().toString()/*event.getEvent().context().toString()*/);
+                                        operation = new FileOperation(OperationType.ENTRY_MOVE, event.getAbsPath().toString());
                                         msg = new TransferFileMsg(localAddr, getRelativePath(event.getAbsPath()), getRelativePath(prevAbsPath));
 
                                         LOG.debug("{}: {} {}\n", "ENTRY_MOVE", event.getEvent().context(), prevAbsPath);
                                     } else {
-                                        operation = new FileOperation(OperationType.ENTRY_RENAME, event.getAbsPath().toString()/*event.getEvent().context().toString()*/);
+                                        operation = new FileOperation(OperationType.ENTRY_RENAME, event.getAbsPath().toString());
                                         msg = new RenameFileMsg(localAddr, getRelativePath(event.getAbsPath()), getRelativePath(prevAbsPath));
                                         LOG.debug("{}: {} {}\n", "ENTRY_RENAME", getRelativePath(event.getAbsPath()), prevAbsPath);
                                     }
@@ -205,7 +162,7 @@ public class EventsProcessor implements Runnable {
                                     break;
                                 }
                             }
-                            operation = new FileOperation(OperationType.ENTRY_DELETE, event.getAbsPath().toString()/*event.getEvent().context().toString()*/);
+                            operation = new FileOperation(OperationType.ENTRY_DELETE, event.getAbsPath().toString());
                             msg = new DeleteFileMsg(localAddr, getRelativePath(event.getAbsPath()));
 
                             LOG.debug("{} {}: {} {}\n", event.getEventTime(), kind, event.getEvent().context());

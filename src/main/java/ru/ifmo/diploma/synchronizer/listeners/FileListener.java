@@ -52,15 +52,13 @@ public class FileListener extends AbstractListener {
             }
 
             if (!Files.exists(Paths.get(dc.getAbsolutePath(fileMsg.getRelativePath()))) && !createDir) {
-                fileOperations.add(new FileOperation(OperationType.ENTRY_COPY_OR_CREATE, dc.getAbsolutePath(fileMsg.getRelativePath())/*fileMsg.getRelativePath()*/));
+                fileOperations.add(new FileOperation(OperationType.ENTRY_COPY_OR_CREATE, dc.getAbsolutePath(fileMsg.getRelativePath())));
             } else {
-                fileOperations.add(new FileOperation(OperationType.ENTRY_MODIFY, dc.getAbsolutePath(fileMsg.getRelativePath())/*fileMsg.getRelativePath()*/));
+                fileOperations.add(new FileOperation(OperationType.ENTRY_MODIFY, dc.getAbsolutePath(fileMsg.getRelativePath())));
             }
 
             try (OutputStream out = new FileOutputStream(dc.getAbsolutePath(fileMsg.getRelativePath()))) {
-                /*if (!fileOperations.containsKey(msg.getRecipient()))
-                    fileOperations.put(msg.getRecipient(), new ArrayList<>());
-                fileOperations.get(fileOperations).add(new FileOperation(OperationType.ENTRY_CREATE, fileMsg.getRelativePath()));*/
+
                 out.write(fileContent);
                 dc.setCreationTime(dc.getAbsolutePath(fileMsg.getRelativePath()), fileMsg.getCreationTime());
                 if (!msg.isBroadcast()) {
