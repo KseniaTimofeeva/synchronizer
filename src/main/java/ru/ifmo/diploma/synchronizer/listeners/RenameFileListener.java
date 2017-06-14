@@ -34,7 +34,7 @@ public class RenameFileListener extends AbstractListener {
                 fileOperations.put(msg.getRecipient(), new ArrayList<>());
             fileOperations.get(fileOperations).add(new FileOperation(OperationType.ENTRY_RENAME, renameMsg.getNewRelativePath()));*/
 
-            fileOperations.add(new FileOperation(OperationType.ENTRY_RENAME, renameMsg.getOldRelativePath()));
+            fileOperations.add(new FileOperation(OperationType.ENTRY_RENAME, dc.getAbsolutePath(renameMsg.getOldRelativePath())/*renameMsg.getOldRelativePath()*/));
 
             File oldFile = new File(dc.getAbsolutePath(renameMsg.getOldRelativePath()));
             File newFile = new File(dc.getAbsolutePath(renameMsg.getNewRelativePath()));

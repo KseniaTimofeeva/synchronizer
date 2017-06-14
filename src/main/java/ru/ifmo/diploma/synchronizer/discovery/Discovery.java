@@ -120,7 +120,6 @@ public class Discovery {
     }
 
     private void startAccept() {
-        String localIP = synchronizer.getLocalIP();
 
         try (ServerSocket ssocket = new ServerSocket(localPort)) {   //стартуем на заданном порту
             LOG.debug(localAddr + ": Server started on " + ssocket);

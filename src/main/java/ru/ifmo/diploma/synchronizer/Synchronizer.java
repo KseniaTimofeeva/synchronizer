@@ -122,10 +122,6 @@ public class Synchronizer extends Thread {
         return viewer;
     }
 
-    public String getLocalIP() {
-        return localIP;
-    }
-
     private void addListeners() {
         listeners.add(new CopyFileListener(localAddr, writerTasks, dc, fileOperations));
         listeners.add(new DeleteFileListener(localAddr, writerTasks, dc, fileOperations));
@@ -195,7 +191,7 @@ public class Synchronizer extends Thread {
                 return;
             }
 
-//            startPath = startPath.replaceAll("\\\\", File.separator).trim();
+//            startPath = startPath.replaceAll("\\\\", "/").trim();
             String lastChar = startPath.substring(startPath.length() - 1, startPath.length());
             if (lastChar.equals("\\")) {
                 startPath = startPath.substring(0, startPath.length() - 1); //удаляем последний сепаратор, если он есть

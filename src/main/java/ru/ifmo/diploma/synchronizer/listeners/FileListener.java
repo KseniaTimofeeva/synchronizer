@@ -7,9 +7,13 @@ import ru.ifmo.diploma.synchronizer.FileOperation;
 import ru.ifmo.diploma.synchronizer.OperationType;
 import ru.ifmo.diploma.synchronizer.messages.*;
 
+import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.concurrent.BlockingQueue;
 
 /*
@@ -21,7 +25,7 @@ public class FileListener extends AbstractListener {
 
     public FileListener(String localAddr, BlockingQueue<AbstractMsg> tasks, DirectoriesComparison dc, BlockingQueue<FileOperation> fileOperations) {
         super(localAddr, tasks, dc);
-        this.fileOperations=fileOperations;
+        this.fileOperations = fileOperations;
     }
 
     @Override
@@ -32,10 +36,28 @@ public class FileListener extends AbstractListener {
 
             FileMsg fileMsg = (FileMsg) msg;
             byte[] fileContent = fileMsg.getFile();
-            fileOperations.add(new FileOperation(OperationType.ENTRY_COPY_OR_CREATE, fileMsg.getRelativePath()));
+
+            String p = dc.getAbsolutePath(fileMsg.getRelativePath());
+            Path newDirPath = Paths.get(p.substring(0, p.lastIndexOf(File.separator)));
+
+            boolean createDir = false;
+            try {
+                if (!Files.exists(newDirPath)) {
+                    createDir = true;
+                    Files.createDirectories(newDirPath);
+                }
+            } catch (IOException e) {
+                tasks.offer(new ResultMsg(localAddr, msg.getSender(), MessageState.FAILED, msg));
+                e.printStackTrace();
+            }
+
+            if (!Files.exists(Paths.get(dc.getAbsolutePath(fileMsg.getRelativePath()))) && !createDir) {
+                fileOperations.add(new FileOperation(OperationType.ENTRY_COPY_OR_CREATE, dc.getAbsolutePath(fileMsg.getRelativePath())/*fileMsg.getRelativePath()*/));
+            } else {
+                fileOperations.add(new FileOperation(OperationType.ENTRY_MODIFY, dc.getAbsolutePath(fileMsg.getRelativePath())/*fileMsg.getRelativePath()*/));
+            }
 
             try (OutputStream out = new FileOutputStream(dc.getAbsolutePath(fileMsg.getRelativePath()))) {
-
                 /*if (!fileOperations.containsKey(msg.getRecipient()))
                     fileOperations.put(msg.getRecipient(), new ArrayList<>());
                 fileOperations.get(fileOperations).add(new FileOperation(OperationType.ENTRY_CREATE, fileMsg.getRelativePath()));*/

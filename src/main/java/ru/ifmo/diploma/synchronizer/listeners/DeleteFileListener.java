@@ -30,7 +30,7 @@ public class DeleteFileListener extends AbstractListener {
 
             DeleteFileMsg delMsg = (DeleteFileMsg) msg;
             LOG.debug("{}: Listener: DELETE_FILE {} from host {}", localAddr, delMsg.getRelativePath(), msg.getSender());
-            fileOperations.add(new FileOperation(OperationType.ENTRY_DELETE, delMsg.getRelativePath()));
+            fileOperations.add(new FileOperation(OperationType.ENTRY_DELETE, dc.getAbsolutePath(delMsg.getRelativePath())/*delMsg.getRelativePath()*/));
             try {
                 Files.deleteIfExists(Paths.get(dc.getAbsolutePath(delMsg.getRelativePath())));
                 if (!msg.isBroadcast()) {

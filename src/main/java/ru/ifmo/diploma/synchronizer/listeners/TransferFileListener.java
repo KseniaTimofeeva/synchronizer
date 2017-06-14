@@ -38,7 +38,7 @@ public class TransferFileListener extends AbstractListener {
             TransferFileMsg transMsg = (TransferFileMsg) msg;
             LOG.debug("{}: Listener: TRANSFER_FILE {} to {} from host {}", localAddr, transMsg.getOldRelativePath(),
                     transMsg.getNewRelativePath(), msg.getSender());
-            fileOperations.add(new FileOperation(OperationType.ENTRY_MOVE, transMsg.getOldRelativePath()));
+            fileOperations.add(new FileOperation(OperationType.ENTRY_MOVE, dc.getAbsolutePath(transMsg.getOldRelativePath())/*transMsg.getOldRelativePath()*/));
 
             Path oldPath = Paths.get(dc.getAbsolutePath(transMsg.getOldRelativePath()));
             String p = dc.getAbsolutePath(transMsg.getNewRelativePath());

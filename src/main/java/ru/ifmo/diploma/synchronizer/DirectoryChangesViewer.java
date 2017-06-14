@@ -3,7 +3,9 @@ package ru.ifmo.diploma.synchronizer;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.ifmo.diploma.synchronizer.messages.AbstractMsg;
+import sun.rmi.runtime.Log;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.FileSystems;
 import java.nio.file.FileVisitResult;
@@ -91,10 +93,19 @@ public class DirectoryChangesViewer implements Runnable {
 
                 Path watchedObj = dir.resolve(((WatchEvent<Path>) event).context());
                 if (!watchedObj.endsWith("log.bin")) {
+                    boolean isDeletedDir = false;
                     try {
-                        if (!Files.isDirectory(watchedObj)) {
+                        if ("ENTRY_DELETE".equals(event.kind().name()) &&
+                                watchedObj.toString().lastIndexOf('.') != watchedObj.toString().length() - 4) {
+                            isDeletedDir = true;
+                        }
+                        if (!Files.isDirectory(watchedObj) && !isDeletedDir) {
+
+                            LOG.trace("Viewer: file {} {}", event.kind().name(), watchedObj);
                             events.offer(new Event(System.currentTimeMillis(), event, watchedObj));
                         } else {
+                            LOG.trace("Viewer: directory {} {}", event.kind().name(), watchedObj);
+
                             if ("ENTRY_CREATE".equals(event.kind().name()))
                                 walkAndRegisterDirectories(watchedObj);
                         }
